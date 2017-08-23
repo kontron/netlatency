@@ -128,9 +128,10 @@ static int receive_msg(int sockfd)
 	return n;
 }
 
-void usage(void){
-
+void usage(char **argv){
+	printf("%s DEVICE\n", argv[0]);
 }
+
 
 int main(int argc, char **argv)
 {
@@ -138,16 +139,14 @@ int main(int argc, char **argv)
 	int sockfd;
 	struct ifreq ifopts;
 
-	char *ifname = "eth0";
+	char *ifname = NULL;
 
-	(void)argc;
-	(void)argv;
-
-	printf("argc=%d\n", argc);
 	if (argc < 2) {
-		usage();
+		usage(argv);
 		return -1;
 	}
+
+	ifname = argv[1];
 
 	sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP));
 	//sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));

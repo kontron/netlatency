@@ -66,7 +66,7 @@ DEPS := $(shell find $(o) -name '*.d')
 
 
 
-ALL_TARGETS += $(o)rx
+ALL_TARGETS += $(o)rx $(o)tx
 
 real-all: $(ALL_TARGETS)
 
@@ -74,6 +74,7 @@ all: real-all
 
 
 CLEAN_TARGETS += clean-rx_timestamping
+CLEAN_TARGETS += clean-tx
 INSTALL_TARGETS += install-rx_timestamping
 
 rx_timestamping_SOURCES := rx_timestamping.c
@@ -92,6 +93,14 @@ install-rx_timestamping: $(o)rx
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
 	$(INSTALL) -m 0755 $(o)rx $(DESTDIR)$(BINDIR)/
 
+tx_SOURCES := tx.c
+tx_OBJECTS := $(addprefix $(o),$(tx_SOURCES:.c=.o))
+
+$(o)tx: $(tx_OBJECTS)
+	$(call link_tgt,tx)
+
+clean-tx:
+	rm -f $(tx_OBJECTS) $(o)tx
 
 .PHONY: $(CLEAN_TARGETS) clean
 clean: $(CLEAN_TARGETS)

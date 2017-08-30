@@ -39,6 +39,7 @@ MY_LDFLAGS := $(LDFLAGS)
 MY_CFLAGS += $(call cflags_for_lib,glib-2.0)
 LIBS += $(call ldflags_for_lib,glib-2.0)
 LIBS += -lrt
+LIBS += -lm
 
 MY_CFLAGS += -DVERSION=\"$(VERSION)\"
 
@@ -73,27 +74,27 @@ real-all: $(ALL_TARGETS)
 all: real-all
 
 
-CLEAN_TARGETS += clean-rx_timestamping
+CLEAN_TARGETS += clean-rx
 CLEAN_TARGETS += clean-tx
-INSTALL_TARGETS += install-rx_timestamping
+INSTALL_TARGETS += install-rx
 
-rx_timestamping_SOURCES := rx_timestamping.c
-rx_timestamping_OBJECTS := $(addprefix $(o),$(rx_timestamping_SOURCES:.c=.o))
+rx_SOURCES := rx.c stats.c
+rx_OBJECTS := $(addprefix $(o),$(rx_SOURCES:.c=.o))
 
 $(o)%.o: %.c
-	$(call compile_tgt,rx_timestamping)
+	$(call compile_tgt,rx)
 
-$(o)rx: $(rx_timestamping_OBJECTS)
-	$(call link_tgt,rx_timestamping)
+$(o)rx: $(rx_OBJECTS)
+	$(call link_tgt,rx)
 
-clean-rx_timestamping:
-	rm -f $(rx_timestamping_OBJECTS) $(o)rx
+clean-rx:
+	rm -f $(rx_OBJECTS) $(o)rx
 
-install-rx_timestamping: $(o)rx
+install-rx: $(o)rx
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
 	$(INSTALL) -m 0755 $(o)rx $(DESTDIR)$(BINDIR)/
 
-tx_SOURCES := tx.c
+tx_SOURCES := tx.c stats.c
 tx_OBJECTS := $(addprefix $(o),$(tx_SOURCES:.c=.o))
 
 $(o)tx: $(tx_OBJECTS)

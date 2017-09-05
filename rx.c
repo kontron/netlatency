@@ -144,13 +144,18 @@ static int receive_msg(int fd, struct ether_addr *my_eth_addr)
 	get_hw_timestamp(&msg, &ts);
 	calc_stats(&ts, &stats);
 
-	printf("SEQ %4d ", tp->seq);
-	printf("NOW   %lld.%.03ld.%03ld",
+	printf("SEQ %4d", tp->seq);
+	printf("  NOW(l) %lld.%.03ld.%03ld",
 		(long long)ts.tv_sec,
 		ts.tv_nsec / 1000000,
 		(ts.tv_nsec / 1000)%1000
 	);
-	printf("  DIFF to prev  %lld.%.03ld.%03ld",
+	printf("  NOW(r) %lld.%.03ld.%03ld",
+		(long long)tp->ts.tv_sec,
+		tp->ts.tv_nsec / 1000000,
+		(tp->ts.tv_nsec / 1000)%1000
+	);
+	printf("  DIFF to prev %lld.%.03ld.%03ld",
 		(long long)stats.diff.tv_sec,
 		stats.diff.tv_nsec / 1000000,
 		(stats.diff.tv_nsec / 1000)%1000

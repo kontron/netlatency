@@ -525,7 +525,7 @@ int main(int argc, char **argv)
 				printf("\n");
 
 				/* update new timestamp in packet */
-				memcpy(&tp->timestamp, &ts, sizeof(struct timespec));
+				memcpy(&tp->ts, &ts, sizeof(struct timespec));
 
 				eth_send(eth, buf, 64);
 

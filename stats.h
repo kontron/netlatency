@@ -10,5 +10,4 @@ struct stats {
 };
 
 void calc_stats(struct timespec *ts, struct stats *stats);
-
 #endif

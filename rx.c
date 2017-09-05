@@ -39,7 +39,6 @@ static gchar *help_description = NULL;
 static gint o_verbose = 0;
 static gint o_quiet = 0;
 static gint o_version = 0;
-static gint o_testmode = 0;
 
 static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 {
@@ -74,16 +73,6 @@ static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 			/* Ignore other cmsg options */
 			break;
 		}
-
-#if 0
-		if (scm_ts) {
-			printf("%lld.%.9ld, %lld.%.9ld, %lld.%.9ld",
-					(long long)scm_ts->ts[0].tv_sec, scm_ts->ts[0].tv_nsec,
-					(long long)scm_ts->ts[1].tv_sec, scm_ts->ts[1].tv_nsec,
-					(long long)scm_ts->ts[2].tv_sec, scm_ts->ts[2].tv_nsec
-					);
-		}
-#endif
 	}
 }
 
@@ -92,7 +81,7 @@ struct stats stats;
 
 #define BUF_SIZE 10*1024
 #define BUF_CONTROL_SIZE 1024
-static int receive_msg(int sockfd, struct ether_addr *my_eth_addr)
+static int receive_msg(int fd, struct ether_addr *my_eth_addr)
 {
 	struct msghdr msg;
 	struct iovec iov;
@@ -113,7 +102,7 @@ static int receive_msg(int sockfd, struct ether_addr *my_eth_addr)
 	msg.msg_controllen = BUF_CONTROL_SIZE;
 
 	/* block for message */
-	n = recvmsg(sockfd, &msg, 0);
+	n = recvmsg(fd, &msg, 0);
 	if ( !n && errno == EAGAIN ) {
 		return 0;
 	}
@@ -148,7 +137,6 @@ static int receive_msg(int sockfd, struct ether_addr *my_eth_addr)
 		printf("proto: 0x%04x, ", ntohs(ethhdr->h_proto));
 	}
 
-
 	get_hw_timestamp(&msg, &ts);
 	calc_stats(&ts, &stats);
 
@@ -174,13 +162,6 @@ static int receive_msg(int sockfd, struct ether_addr *my_eth_addr)
 		(stats.max.tv_nsec / 1000)%1000
 	);
 	printf("\n");
-//	printf("%lld.%.3ld.%3ld.%3ld",
-//					(long long)ts.tv_sec,
-//					ts.tv_nsec / 1000000,
-//					(ts.tv_nsec / 1000)%1000,
-//					ts.tv_nsec %1000
-//					);
-	//print_msg(&msg);
 
 	return n;
 }
@@ -191,8 +172,6 @@ void usage(void)
 }
 
 static GOptionEntry entries[] = {
-	{ "testmode",   'v', 0, G_OPTION_ARG_NONE,
-			&o_testmode, "Start testmode", NULL },
 	{ "verbose",   'v', 0, G_OPTION_ARG_NONE,
 			&o_verbose, "Be verbose", NULL },
 	{ "quiet",     'q', 0, G_OPTION_ARG_NONE,
@@ -229,7 +208,7 @@ int main(int argc, char **argv)
 {
 	int rv;
 
-	int sockfd;
+	int fd;
 	struct ifreq ifopts;
 	struct ether_addr src_eth_addr;
 
@@ -244,10 +223,10 @@ int main(int argc, char **argv)
 
 	ifname = argv[1];
 
-	//sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP));
-	//sockfd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-	sockfd = socket(PF_PACKET, SOCK_RAW, htons(0x0808));
-	if (sockfd < 0) {
+	//fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP));
+	//fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+	fd = socket(PF_PACKET, SOCK_RAW, htons(0x0808));
+	if (fd < 0) {
 		perror("socket()");
 		return -1;
 	}
@@ -255,7 +234,7 @@ int main(int argc, char **argv)
 	/* determine own ethernet address */
 	memset(&ifopts, 0, sizeof(struct ifreq));
 	strncpy(ifopts.ifr_name, argv[1], sizeof(ifopts.ifr_name));
-	if (ioctl(sockfd, SIOCGIFHWADDR, &ifopts) < 0) {
+	if (ioctl(fd, SIOCGIFHWADDR, &ifopts) < 0) {
 		perror("ioctl");
 		return -1;
 	}
@@ -266,18 +245,18 @@ int main(int argc, char **argv)
 		/* Set interface to promiscuous mode - do we need to do this every time? */
 		/* no .. check if promiscuous mode was set before */
 		strncpy(ifopts.ifr_name, ifname, IFNAMSIZ-1);
-		ioctl(sockfd, SIOCGIFFLAGS, &ifopts);
+		ioctl(fd, SIOCGIFFLAGS, &ifopts);
 		ifopts.ifr_flags |= IFF_PROMISC;
-		ioctl(sockfd, SIOCSIFFLAGS, &ifopts);
+		ioctl(fd, SIOCSIFFLAGS, &ifopts);
 	}
 
 	{
 		int sockopt;
 		/* Allow the socket to be reused - incase connection is closed prematurely */
-		rv = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt);
+		rv = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt);
 		if (rv == -1) {
 			perror("setsockopt() ... enable");
-			close(sockfd);
+			close(fd);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -296,7 +275,7 @@ int main(int argc, char **argv)
 
 		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
 		ifr.ifr_data = (caddr_t)&config;
-		if (ioctl(sockfd, SIOCSHWTSTAMP, &ifr)) {
+		if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
 			perror("ioctl()\n");
 			return 1;
 		}
@@ -309,31 +288,27 @@ int main(int argc, char **argv)
 				| SOF_TIMESTAMPING_RAW_HARDWARE
 				| SOF_TIMESTAMPING_SYS_HARDWARE
 				| SOF_TIMESTAMPING_SOFTWARE;
-		rv = setsockopt(sockfd, SOL_SOCKET, SO_TIMESTAMPING, &optval, sizeof(int));
+		rv = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &optval, sizeof(int));
 		if (rv == -1) {
 			perror("setsockopt() ... enable timestamp");
 		}
 	}
 
 	/* Bind to device */
-	setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, ifname, IFNAMSIZ-1);
+	setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, ifname, IFNAMSIZ-1);
 	if (rv == -1) {
 		perror("setsockopt() ... bind to device");
-		close(sockfd);
+		close(fd);
 		exit(EXIT_FAILURE);
 	}
 
 
-	if (o_testmode) {
-
-	} else {
-		memset(&stats, 0, sizeof(struct stats));
-		while (1) {
-			receive_msg(sockfd, &src_eth_addr);
-		}
+	memset(&stats, 0, sizeof(struct stats));
+	while (1) {
+		receive_msg(fd, &src_eth_addr);
 	}
 
-	close(sockfd);
+	close(fd);
 
 	return 0;
 }

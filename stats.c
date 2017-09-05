@@ -19,7 +19,6 @@ void timespec_diff(struct timespec *start, struct timespec *stop,
 	return;
 }
 
-
 #define TIME_ARRAY_SIZE 100
 
 struct stamps {
@@ -57,17 +56,6 @@ void add_stamps(struct timespec *ts, struct stamps *sa)
 	}
 }
 
-#if 0
-void rms(struct timespec *p, int count)
-{
-	int i;
-	long long sum = 0;
-	for (i = 0; i < count; i++) {
-		sum += ((p+i)->tv_nsec) * ((p+i)->tv_nsec);
-	}
-}
-#endif
-
 struct timespec calc_rms(struct stamps *sa)
 {
 	int i;
@@ -81,7 +69,8 @@ struct timespec calc_rms(struct stamps *sa)
 	return mean;
 }
 
-void get_diff_to_index(struct stamps *sa, struct timespec *ts, int index_offset, struct timespec *ts_diff)
+void get_diff_to_index(struct stamps *sa, struct timespec *ts,
+		int index_offset, struct timespec *ts_diff)
 {
 	(void)index_offset;
 

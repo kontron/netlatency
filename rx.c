@@ -34,6 +34,7 @@
 #include <glib/gprintf.h>
 
 #include "stats.h"
+#include "data.h"
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;
@@ -107,13 +108,16 @@ static int receive_msg(int fd, struct ether_addr *my_eth_addr)
 		return 0;
 	}
 
+	struct ether_testpacket *tp;
 	struct ethhdr *ethhdr;
 	ethhdr = (struct ethhdr*)buffer;
+	tp = (struct ether_testpacket*)buffer;
 
 
 	if (my_eth_addr != NULL) {
 		/* filter for own ether packets */
-		if (memcmp(my_eth_addr->ether_addr_octet, ethhdr->h_dest, ETH_ALEN)) {
+		if (memcmp(my_eth_addr->ether_addr_octet, tp->hdr.ether_dhost, ETH_ALEN)) {
+		//if (memcmp(my_eth_addr->ether_addr_octet, ethhdr->h_dest, ETH_ALEN)) {
 			return -1;
 		}
 	}
@@ -140,6 +144,7 @@ static int receive_msg(int fd, struct ether_addr *my_eth_addr)
 	get_hw_timestamp(&msg, &ts);
 	calc_stats(&ts, &stats);
 
+	printf("SEQ %4d ", tp->seq);
 	printf("NOW   %lld.%.03ld.%03ld",
 		(long long)ts.tv_sec,
 		ts.tv_nsec / 1000000,

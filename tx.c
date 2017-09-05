@@ -34,7 +34,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <netpacket/packet.h>
-#include <net/ethernet.h>
+//#include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/ether.h>
 
@@ -50,6 +50,7 @@
 #include <glib/gprintf.h>
 
 #include "stats.h"
+#include "data.h"
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;
@@ -58,11 +59,12 @@ static gint o_version = 0;
 static gint o_interval_us = 0;
 static gint o_run_timer = 0;
 static gint o_run_thread = 0;
-static gchar *o_destination_mac = NULL;
+static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
 static gint o_memlock = 1;
 
 static uint8_t buf[1024];
+struct ether_testpacket *tp = (struct ether_testpacket*)buf;
 
 struct eth_handle {
 	int fd;
@@ -364,6 +366,8 @@ void *thread_func(void *data)
 	return NULL;
 }
 
+
+
 int run_thread(void)
 {
 	struct sched_param param;
@@ -449,6 +453,7 @@ int main(int argc, char **argv)
 	}
 
 	config_thread();
+	memset(tp, 0, sizeof(struct ether_testpacket));
 
 	/* determine own ethernet address */
 	{
@@ -460,30 +465,17 @@ int main(int argc, char **argv)
 		}
 	}
 
-	struct ether_addr destination_addr;
-	if (o_destination_mac) {
-		if (ether_aton_r(o_destination_mac, &destination_addr) == NULL) {
-			return -1;
-		}
-
-	} else {
-		/* set broadcast */
-		if (ether_aton_r("FF:FF:FF:FF:FF:FF", &destination_addr) == NULL) {
-			return -1;
-		}
-	}
 
 	/* destination MAC */
-	memcpy(&buf[idx], &destination_addr, ETH_ALEN);
-	idx += ETH_ALEN;
+	if (ether_aton_r(o_destination_mac, (struct ether_addr*)&tp->hdr.ether_dhost) == NULL) {
+		return -1;
+	}
 
 	/* source MAC */
-	memcpy(&buf[idx], &ifopts.ifr_hwaddr.sa_data, ETH_ALEN);
-	idx += ETH_ALEN;
+	memcpy(tp->hdr.ether_shost, &ifopts.ifr_hwaddr.sa_data, ETH_ALEN);
 
 	/* ethertype */
-	buf[idx++] = 0x08;
-	buf[idx++] = 0x08;
+	tp->hdr.ether_type = 0x0808;
 
 	if (o_interval_us) {
 
@@ -509,6 +501,7 @@ int main(int argc, char **argv)
 
 				calc_stats(&ts, &stats);
 
+				printf("SEQ %4d ", tp->seq);
 				printf("NOW   %lld.%.03ld.%03ld",
 					(long long)ts.tv_sec,
 					ts.tv_nsec / 1000000,
@@ -532,11 +525,13 @@ int main(int argc, char **argv)
 				printf("\n");
 
 				/* update new timestamp in packet */
-				memcpy(buf+idx, &ts, sizeof(struct timespec));
+				memcpy(&tp->timestamp, &ts, sizeof(struct timespec));
 
 				eth_send(eth, buf, 64);
 
 				nanosleep_until(&sleep_ts, o_interval_us * 1000);
+				// increase sequence number
+				tp->seq++;
 			}
 		}
 

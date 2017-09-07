@@ -1,5 +1,6 @@
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
@@ -74,7 +75,7 @@ void get_diff_to_index(struct stamps *sa, struct timespec *ts,
 {
 	(void)index_offset;
 
-	if (sa->count > 1) {
+	if (sa->count > 2) {
 		int l = -1;
 
 		if (sa->index == 0) {
@@ -85,22 +86,31 @@ void get_diff_to_index(struct stamps *sa, struct timespec *ts,
 			l = sa->index - 1 - 1;
 		}
 		timespec_diff(&sa->tsa[l], ts, ts_diff);
+	} else {
+		memset(ts_diff, 0, sizeof(struct timespec));
 	}
 }
 
 void check_for_max(struct timespec *val, struct stats *stats)
 {
-	if (val->tv_nsec > stats->max.tv_nsec) {
-		stats->max.tv_nsec = val->tv_nsec;
+
+	int m = abs(val->tv_nsec);
+	if (m > stats->max.tv_nsec) {
+		stats->max.tv_nsec = m;
 		stats->max.tv_sec = val->tv_sec;
 	}
 }
 
-void calc_stats(struct timespec *ts, struct stats *stats)
+void calc_stats(struct timespec *ts, struct stats *stats, int interval_us)
 {
 	add_stamps(ts, &ts_array);
-	get_diff_to_index(&ts_array, ts, -1, &stats->diff);
-	add_stamps(&stats->diff, &diffs_array);
-	stats->mean = calc_rms(&diffs_array);
-	check_for_max(&stats->diff, stats);
+
+	if (ts_array.count > 2) {
+		get_diff_to_index(&ts_array, ts, -1, &stats->diff);
+		stats->diff.tv_nsec -= (interval_us * 1000);
+		add_stamps(&stats->diff, &diffs_array);
+
+		stats->mean = calc_rms(&diffs_array);
+		check_for_max(&stats->diff, stats);
+	}
 }

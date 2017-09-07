@@ -67,7 +67,7 @@ DEPS := $(shell find $(o) -name '*.d')
 
 
 
-ALL_TARGETS += $(o)rx $(o)tx
+ALL_TARGETS += $(o)rx $(o)tx $(o)reader
 
 real-all: $(ALL_TARGETS)
 
@@ -76,13 +76,15 @@ all: real-all
 
 CLEAN_TARGETS += clean-rx
 CLEAN_TARGETS += clean-tx
+CLEAN_TARGETS += clean-reader
 INSTALL_TARGETS += install-rx
 
-rx_SOURCES := rx.c stats.c
+rx_SOURCES := rx.c stats.c domain_socket.c
 rx_OBJECTS := $(addprefix $(o),$(rx_SOURCES:.c=.o))
 
 $(o)%.o: %.c
 	$(call compile_tgt,rx)
+
 
 $(o)rx: $(rx_OBJECTS)
 	$(call link_tgt,rx)
@@ -94,6 +96,7 @@ install-rx: $(o)rx
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
 	$(INSTALL) -m 0755 $(o)rx $(DESTDIR)$(BINDIR)/
 
+
 tx_SOURCES := tx.c stats.c
 tx_OBJECTS := $(addprefix $(o),$(tx_SOURCES:.c=.o))
 
@@ -102,6 +105,16 @@ $(o)tx: $(tx_OBJECTS)
 
 clean-tx:
 	rm -f $(tx_OBJECTS) $(o)tx
+
+reader_SOURCES := reader.c domain_socket.c
+reader_OBJECTS := $(addprefix $(o),$(reader_SOURCES:.c=.o))
+
+$(o)reader: $(reader_OBJECTS)
+	$(call link_tgt,reader)
+
+clean-reader:
+	rm -f $(reader_OBJECTS) $(o)reader
+
 
 .PHONY: $(CLEAN_TARGETS) clean
 clean: $(CLEAN_TARGETS)

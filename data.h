@@ -8,9 +8,7 @@ struct ether_testpacket {
 	struct ether_header hdr;
 	struct timespec ts;
 	uint32_t seq;
-
+	uint32_t interval_us;
 };
-
-void calc_stats(struct timespec *ts, struct stats *stats);
 
 #endif

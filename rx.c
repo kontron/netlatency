@@ -26,6 +26,11 @@
 #include <net/ethernet.h>
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <fcntl.h>
+#include <sys/socket.h>
 
 #include <linux/net_tstamp.h>
 #include <linux/sockios.h>
@@ -35,11 +40,14 @@
 
 #include "stats.h"
 #include "data.h"
+#include "domain_socket.h"
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;
 static gint o_quiet = 0;
 static gint o_version = 0;
+static gint o_socket = 0;
+
 
 static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 {
@@ -78,46 +86,28 @@ static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 }
 
 
-struct stats stats;
 
 #define BUF_SIZE 10*1024
 #define BUF_CONTROL_SIZE 1024
-static int receive_msg(int fd, struct ether_addr *my_eth_addr)
+static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
 {
-	struct msghdr msg;
-	struct iovec iov;
-	struct sockaddr_in host_address;
-	unsigned char buffer[BUF_SIZE];
-	char control[BUF_CONTROL_SIZE];
 	int n;
-	struct timespec ts;
-
-	/* recvmsg header structure */
-	iov.iov_base = buffer;
-	iov.iov_len = BUF_SIZE;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_name = &host_address;
-	msg.msg_namelen = sizeof(struct sockaddr_in);
-	msg.msg_control = control;
-	msg.msg_controllen = BUF_CONTROL_SIZE;
 
 	/* block for message */
-	n = recvmsg(fd, &msg, 0);
+	n = recvmsg(fd, msg, 0);
 	if ( !n && errno == EAGAIN ) {
 		return 0;
 	}
 
 	struct ether_testpacket *tp;
 	struct ethhdr *ethhdr;
-	ethhdr = (struct ethhdr*)buffer;
-	tp = (struct ether_testpacket*)buffer;
+	ethhdr = (struct ethhdr*)msg->msg_iov->iov_base;
+	tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
 
-	if (my_eth_addr != NULL) {
+	if (myaddr != NULL) {
 		/* filter for own ether packets */
-		if (memcmp(my_eth_addr->ether_addr_octet, tp->hdr.ether_dhost, ETH_ALEN)) {
-		//if (memcmp(my_eth_addr->ether_addr_octet, ethhdr->h_dest, ETH_ALEN)) {
+		if (memcmp(myaddr->ether_addr_octet, tp->hdr.ether_dhost, ETH_ALEN)) {
 			return -1;
 		}
 	}
@@ -141,39 +131,95 @@ static int receive_msg(int fd, struct ether_addr *my_eth_addr)
 		printf("proto: 0x%04x, ", ntohs(ethhdr->h_proto));
 	}
 
-	get_hw_timestamp(&msg, &ts);
-	calc_stats(&ts, &stats);
+	return n;
+}
 
-	printf("SEQ %4d", tp->seq);
-	printf("  NOW(l) %lld.%.03ld.%03ld",
+struct stats stats;
+
+static int handle_msg(struct msghdr *msg, int fd_socket)
+{
+	struct ether_testpacket *tp;
+	struct ethhdr *ethhdr;
+	struct timespec ts;
+
+	ethhdr = (struct ethhdr*)msg->msg_iov->iov_base;
+	tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
+
+	(void)socket;
+
+	if (o_verbose) {
+		printf("src: %02x:%02x:%02x:%02x:%02x:%02x, ",
+				ethhdr->h_source[0],
+				ethhdr->h_source[1],
+				ethhdr->h_source[2],
+				ethhdr->h_source[3],
+				ethhdr->h_source[4],
+				ethhdr->h_source[5]);
+		printf("dst: %02x:%02x:%02x:%02x:%02x:%02x, ",
+				ethhdr->h_dest[0],
+				ethhdr->h_dest[1],
+				ethhdr->h_dest[2],
+				ethhdr->h_dest[3],
+				ethhdr->h_dest[4],
+				ethhdr->h_dest[5]);
+
+		printf("proto: 0x%04x, ", ntohs(ethhdr->h_proto));
+	}
+
+	get_hw_timestamp(msg, &ts);
+	calc_stats(&ts, &stats, tp->interval_us);
+
+	char str[1024];
+	snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+		tp->seq,
 		(long long)ts.tv_sec,
-		ts.tv_nsec / 1000000,
-		(ts.tv_nsec / 1000)%1000
-	);
-	printf("  NOW(r) %lld.%.03ld.%03ld",
-		(long long)tp->ts.tv_sec,
-		tp->ts.tv_nsec / 1000000,
-		(tp->ts.tv_nsec / 1000)%1000
-	);
-	printf("  DIFF to prev %lld.%.03ld.%03ld",
-		(long long)stats.diff.tv_sec,
-		stats.diff.tv_nsec / 1000000,
-		(stats.diff.tv_nsec / 1000)%1000
-	);
-	printf("  MEAN  %lld.%.03ld.%03ld",
-		(long long)stats.mean.tv_sec,
-		stats.mean.tv_nsec / 1000000,
-		(stats.mean.tv_nsec / 1000)%1000
-	);
+		(ts.tv_nsec / 1000)%1000,
 
-	printf("  MAX   %lld.%.03ld.%03ld",
+		(long long)tp->ts.tv_sec,
+		(tp->ts.tv_nsec / 1000),
+
+		(long long)stats.diff.tv_sec,
+		(stats.diff.tv_nsec / 1000)%1000,
+
+		(long long)stats.mean.tv_sec,
+		(stats.mean.tv_nsec / 1000)%1000,
+
 		(long long)stats.max.tv_sec,
-		stats.max.tv_nsec / 1000000,
 		(stats.max.tv_nsec / 1000)%1000
 	);
-	printf("\n");
 
-	return n;
+	printf("%s", str);
+
+#if 0
+	{
+		if (write(fd_socket, str, strlen(str)) <= 0) {
+			perror("write to socket rc=");
+		}
+	}
+#endif
+
+#if 0
+	{
+		static int client = -1;
+		printf("a\n");
+		if (client == -1) {
+			if ( (client = accept(fd_socket, NULL, NULL)) == -1) {
+				perror("accept error");
+				return 0;
+			}
+		}
+		printf("b\n");
+
+		if (write(client, str, strlen(str)) <= 0) {
+			perror("write to socket rc=");
+		}
+		printf("x\n");
+	}
+#else
+	(void)fd_socket;
+#endif
+
+	return 0;
 }
 
 void usage(void)
@@ -186,6 +232,8 @@ static GOptionEntry entries[] = {
 			&o_verbose, "Be verbose", NULL },
 	{ "quiet",     'q', 0, G_OPTION_ARG_NONE,
 			&o_quiet, "Suppress error messages", NULL },
+	{ "socket",     's', 0, G_OPTION_ARG_NONE,
+			&o_socket, "Write stats to domain socket", NULL },
 	{ "version",   'V', 0, G_OPTION_ARG_NONE,
 			&o_version, "Show version inforamtion and exit", NULL },
 	{ NULL, 0, 0, 0, NULL, NULL, NULL }
@@ -214,11 +262,13 @@ gint parse_command_line_options(gint *argc, char **argv)
 	return 0;
 }
 
+
 int main(int argc, char **argv)
 {
 	int rv;
-
 	int fd;
+	int fd_socket = -1;
+
 	struct ifreq ifopts;
 	struct ether_addr src_eth_addr;
 
@@ -247,6 +297,11 @@ int main(int argc, char **argv)
 	if (ioctl(fd, SIOCGIFHWADDR, &ifopts) < 0) {
 		perror("ioctl");
 		return -1;
+	}
+
+	if (o_socket) {
+//		fd_socket = open_client_socket(socket_path);
+		fd_socket = open_server_socket(socket_path);
 	}
 
 	memcpy(&src_eth_addr, &ifopts.ifr_hwaddr.sa_data, ETH_ALEN);
@@ -312,13 +367,32 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-
 	memset(&stats, 0, sizeof(struct stats));
 	while (1) {
-		receive_msg(fd, &src_eth_addr);
+		struct msghdr msg;
+		struct iovec iov;
+		struct sockaddr_in host_address;
+		unsigned char buffer[BUF_SIZE];
+		char control[BUF_CONTROL_SIZE];
+
+		/* recvmsg header structure */
+		iov.iov_base = buffer;
+		iov.iov_len = BUF_SIZE;
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+		msg.msg_name = &host_address;
+		msg.msg_namelen = sizeof(struct sockaddr_in);
+		msg.msg_control = control;
+		msg.msg_controllen = BUF_CONTROL_SIZE;
+
+		rv = receive_msg(fd, &src_eth_addr, &msg);
+		if (rv > 0) {
+			handle_msg(&msg, fd_socket);
+		}
 	}
 
 	close(fd);
+
 
 	return 0;
 }

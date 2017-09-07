@@ -334,7 +334,7 @@ void *thread_func(void *data)
 	while (1) {
 		clock_gettime(CLOCK_REALTIME, &ts);
 
-		calc_stats(&ts, &stats);
+		calc_stats(&ts, &stats, o_interval_us);
 
 		printf("NOW   %lld.%.03ld.%03ld",
 			(long long)ts.tv_sec,
@@ -499,7 +499,7 @@ int main(int argc, char **argv)
 			while (1) {
 				clock_gettime(CLOCK_REALTIME, &ts);
 
-				calc_stats(&ts, &stats);
+				calc_stats(&ts, &stats, o_interval_us);
 
 				printf("SEQ %4d ", tp->seq);
 				printf("NOW   %lld.%.03ld.%03ld",
@@ -526,6 +526,7 @@ int main(int argc, char **argv)
 
 				/* update new timestamp in packet */
 				memcpy(&tp->ts, &ts, sizeof(struct timespec));
+				tp->interval_us = o_interval_us;
 
 				eth_send(eth, buf, 64);
 

@@ -336,6 +336,7 @@ void *thread_func(void *data)
 
 		calc_stats(&ts, &stats, o_interval_us);
 
+#if 0
 		printf("NOW   %lld.%.03ld.%03ld",
 			(long long)ts.tv_sec,
 			ts.tv_nsec / 1000000,
@@ -357,7 +358,29 @@ void *thread_func(void *data)
 			(stats.max.tv_nsec / 1000)%1000
 		);
 		printf("\n");
+#endif
+		char str[1024];
 
+		memset(str, 0, sizeof(str));
+		snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+				tp->seq,
+				(long long)ts.tv_sec,
+				(ts.tv_nsec / 1000),
+
+				(long long)tp->ts.tv_sec,
+				(tp->ts.tv_nsec / 1000),
+
+				(long long)stats.diff.tv_sec,
+				(stats.diff.tv_nsec / 1000),
+
+				(long long)stats.mean.tv_sec,
+				(stats.mean.tv_nsec / 1000),
+
+				(long long)stats.max.tv_sec,
+				(stats.max.tv_nsec / 1000)
+		);
+
+		printf("%s", str);
 
 
 		nanosleep_until(&sleep_ts, o_interval_us * 1000);
@@ -501,6 +524,7 @@ int main(int argc, char **argv)
 
 				calc_stats(&ts, &stats, o_interval_us);
 
+#if 0
 				printf("SEQ %4d ", tp->seq);
 				printf("NOW   %lld.%.03ld.%03ld",
 					(long long)ts.tv_sec,
@@ -523,6 +547,29 @@ int main(int argc, char **argv)
 					(stats.max.tv_nsec / 1000)%1000
 				);
 				printf("\n");
+#endif
+				char str[1024];
+
+				memset(str, 0, sizeof(str));
+				snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+						tp->seq,
+						(long long)ts.tv_sec,
+						(ts.tv_nsec / 1000),
+
+						(long long)tp->ts.tv_sec,
+						(tp->ts.tv_nsec / 1000),
+
+						(long long)stats.diff.tv_sec,
+						(stats.diff.tv_nsec / 1000),
+
+						(long long)stats.mean.tv_sec,
+						(stats.mean.tv_nsec / 1000),
+
+						(long long)stats.max.tv_sec,
+						(stats.max.tv_nsec / 1000)
+				);
+
+				printf("%s", str);
 
 				/* update new timestamp in packet */
 				memcpy(&tp->ts, &ts, sizeof(struct timespec));

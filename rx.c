@@ -95,7 +95,7 @@ static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
 
 	/* block for message */
 	n = recvmsg(fd, msg, 0);
-	if ( !n && errno == EAGAIN ) {
+	if ( n == 0 && errno == EAGAIN ) {
 		return 0;
 	}
 
@@ -136,6 +136,10 @@ static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
 
 struct stats stats;
 
+#define MAX_CLIENTS 2
+static int client_socket[MAX_CLIENTS];
+static int max_fd;
+
 static int handle_msg(struct msghdr *msg, int fd_socket)
 {
 	struct ether_testpacket *tp;
@@ -170,54 +174,94 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 	calc_stats(&ts, &stats, tp->interval_us);
 
 	char str[1024];
+
+	memset(str, 0, sizeof(str));
 	snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
 		tp->seq,
 		(long long)ts.tv_sec,
-		(ts.tv_nsec / 1000)%1000,
+		(ts.tv_nsec / 1000),
 
 		(long long)tp->ts.tv_sec,
 		(tp->ts.tv_nsec / 1000),
 
 		(long long)stats.diff.tv_sec,
-		(stats.diff.tv_nsec / 1000)%1000,
+		(stats.diff.tv_nsec / 1000),
 
 		(long long)stats.mean.tv_sec,
-		(stats.mean.tv_nsec / 1000)%1000,
+		(stats.mean.tv_nsec / 1000),
 
 		(long long)stats.max.tv_sec,
-		(stats.max.tv_nsec / 1000)%1000
+		(stats.max.tv_nsec / 1000)
 	);
 
-	printf("%s", str);
+	//printf("%s", str);
 
-#if 0
 	{
-		if (write(fd_socket, str, strlen(str)) <= 0) {
-			perror("write to socket rc=");
-		}
-	}
-#endif
+		int i;
+		int sd;
+		int activity;
+		int new_socket;
+		fd_set readfds;
 
-#if 0
-	{
-		static int client = -1;
-		printf("a\n");
-		if (client == -1) {
-			if ( (client = accept(fd_socket, NULL, NULL)) == -1) {
-				perror("accept error");
-				return 0;
+		FD_ZERO(&readfds);
+		FD_SET(fd_socket, &readfds);
+		max_fd = fd_socket;
+
+		//add child sockets to set
+		for (i = 0 ; i < MAX_CLIENTS; i++) {
+			sd = client_socket[i];
+			if (sd > 0) {
+				FD_SET(sd, &readfds);
+			}
+
+			if (sd > max_fd) {
+				max_fd = sd;
 			}
 		}
-		printf("b\n");
 
-		if (write(client, str, strlen(str)) <= 0) {
-			perror("write to socket rc=");
+		struct timeval waitd = {0, 0};
+		activity = select(max_fd + 1 , &readfds , NULL , NULL , &waitd);
+		if ((activity < 0) && (errno != EINTR)) {
+			perror("select error");
 		}
-		printf("x\n");
+
+		// check for new incoming connection
+		if (FD_ISSET(fd_socket, &readfds)) {
+			if ((new_socket = accept(fd_socket, NULL, NULL)) < 0) {
+				perror("accept");
+				return 0;
+			}
+
+
+			// todo check for max reached ...
+			for (i = 0 ; i < MAX_CLIENTS; i++) {
+				if (client_socket[i] == 0) {
+					client_socket[i] = new_socket;
+					break;
+				}
+			}
+		}
+
+		// handle all active connecitons
+		for (i = 0; i < MAX_CLIENTS; i++) {
+			sd = client_socket[i];
+			if (sd == 0) {
+				continue;
+			}
+			if (FD_ISSET( sd , &readfds)) {
+				char t[32];
+				if (read(sd ,t, 32) == 0) {
+					close(sd);
+					client_socket[i] = 0;
+				}
+			}
+
+			if (write(sd, str, strlen(str)) <= 0) {
+//			if (send(sd, str, strlen(str), 0) <= 0) {
+				perror("write to socket rc=");
+			}
+		}
 	}
-#else
-	(void)fd_socket;
-#endif
 
 	return 0;
 }

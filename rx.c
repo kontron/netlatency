@@ -176,7 +176,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 	char str[1024];
 
 	memset(str, 0, sizeof(str));
-	snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+	snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %ld; MEAN: %ld; MAX: %ld;\n",
 		tp->seq,
 		(long long)ts.tv_sec,
 		(ts.tv_nsec / 1000),
@@ -184,17 +184,17 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 		(long long)tp->ts.tv_sec,
 		(tp->ts.tv_nsec / 1000),
 
-		(long long)stats.diff.tv_sec,
 		(stats.diff.tv_nsec / 1000),
 
-		(long long)stats.mean.tv_sec,
 		(stats.mean.tv_nsec / 1000),
 
-		(long long)stats.max.tv_sec,
 		(stats.max.tv_nsec / 1000)
 	);
 
-	//printf("%s", str);
+
+	if (o_verbose) {
+		printf("%s", str);
+	}
 
 	{
 		int i;

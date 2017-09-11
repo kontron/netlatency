@@ -8,7 +8,6 @@
 
 int main(int argc, char *argv[])
 {
-//	int rc;
 	int fd;
 	char buf[1024];
 

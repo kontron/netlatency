@@ -48,6 +48,7 @@ static gint o_quiet = 0;
 static gint o_version = 0;
 static gint o_socket = 0;
 static gint o_capture_ethertype = 0x0808;
+static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
 
 
 static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
@@ -266,7 +267,7 @@ int open_capture_interface(gchar *ifname)
 {
 	int rc;
 	int fd;
-	struct ifreq ifopts;
+	struct ifreq ifr;
 	int sockopt;
 
 	fd = socket(PF_PACKET, SOCK_RAW, htons(o_capture_ethertype));
@@ -278,10 +279,10 @@ int open_capture_interface(gchar *ifname)
 	if (0) {
 		/* Set interface to promiscuous mode - do we need to do this every time? */
 		/* no .. check if promiscuous mode was set before */
-		strncpy(ifopts.ifr_name, ifname, IFNAMSIZ-1);
-		ioctl(fd, SIOCGIFFLAGS, &ifopts);
-		ifopts.ifr_flags |= IFF_PROMISC;
-		ioctl(fd, SIOCSIFFLAGS, &ifopts);
+		strncpy(ifr.ifr_name, ifname, IFNAMSIZ-1);
+		ioctl(fd, SIOCGIFFLAGS, &ifr);
+		ifr.ifr_flags |= IFF_PROMISC;
+		ioctl(fd, SIOCSIFFLAGS, &ifr);
 	}
 
 	{
@@ -297,12 +298,11 @@ int open_capture_interface(gchar *ifname)
 
 	/* configure timestamping */
 	{
-		struct ifreq ifr;
 		struct hwtstamp_config config;
 
 		config.flags = 0;
 		config.tx_type = HWTSTAMP_TX_ON;
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config.rx_filter = o_rx_filter;
 		if (config.tx_type < 0 || config.rx_filter < 0) {
 			return -1;
 		}
@@ -345,6 +345,53 @@ void usage(void)
 	g_printf("%s", help_description);
 }
 
+
+#define MACROSTR(k) { k, #k }
+struct filter_map {
+	int filter;
+	char *name;
+} filter_map[] = {
+	MACROSTR(HWTSTAMP_FILTER_ALL),
+	MACROSTR(HWTSTAMP_FILTER_SOME),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V1_L4_EVENT),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V1_L4_SYNC),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V2_L4_EVENT),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V2_L4_SYNC),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V2_L2_EVENT),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V2_L2_SYNC),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V2_EVENT),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V2_SYNC),
+	MACROSTR(HWTSTAMP_FILTER_PTP_V2_DELAY_REQ),
+	{0, NULL}
+};
+
+static gboolean parse_rx_filter_cb(const gchar *key, const gchar *value,
+	gpointer user_data, GError *error)
+{
+	int i;
+	(void)key;
+	(void)user_data;
+	(void)error;
+
+	for (i = 0; filter_map[i].name != NULL; i++){
+		if (!strncmp(filter_map[i].name, value, strlen(value))) {
+			o_rx_filter = filter_map[i].filter;
+			return TRUE;
+		}
+	}
+
+	/* no valid found .. print valid options */
+	printf("valid rx filters are:\n");
+	for (i = 0; filter_map[i].name != NULL; i++) {
+		printf("  %s\n", filter_map[i].name);
+	}
+
+	return FALSE;
+}
+
 static GOptionEntry entries[] = {
 	{ "verbose",   'v', 0, G_OPTION_ARG_NONE,
 			&o_verbose, "Be verbose", NULL },
@@ -354,6 +401,9 @@ static GOptionEntry entries[] = {
 			&o_socket, "Write stats to domain socket", NULL },
 	{ "ethertype", 'e', 0, G_OPTION_ARG_INT,
 			&o_capture_ethertype, "Set ethertype to filter. Default is 0x0808. ETH_P_ALL is 0x3", NULL },
+	{ "rxfilter", 'f', 0, G_OPTION_ARG_CALLBACK,
+			parse_rx_filter_cb, "Set hw rx filterfilter", NULL },
+
 	{ "version",   'V', 0, G_OPTION_ARG_NONE,
 			&o_version, "Show version inforamtion and exit", NULL },
 	{ NULL, 0, 0, 0, NULL, NULL, NULL }

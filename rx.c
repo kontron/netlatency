@@ -446,7 +446,7 @@ int main(int argc, char **argv)
 	int rc;
 	int fd;
 	int fd_socket = -1;
-	struct ether_addr src_eth_addr;
+	struct ether_addr *src_eth_addr = NULL;
 	char *ifname = NULL;
 
 	parse_command_line_options(&argc, argv);
@@ -469,11 +469,15 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	rc = get_own_eth_address(fd, ifname, &src_eth_addr);
-	if (rc) {
-		perror("get_own_eth_address() ... bind to device");
-		close(fd);
-		exit(EXIT_FAILURE);
+	if (o_ptp_mode == FALSE) {
+		struct ether_addr my_eth_addr;
+		rc = get_own_eth_address(fd, ifname, &my_eth_addr);
+		if (rc) {
+			perror("get_own_eth_address() ... bind to device");
+			close(fd);
+			exit(EXIT_FAILURE);
+		}
+		src_eth_addr = &my_eth_addr;
 	}
 
 	if (o_socket) {
@@ -498,7 +502,7 @@ int main(int argc, char **argv)
 		msg.msg_control = control;
 		msg.msg_controllen = BUF_CONTROL_SIZE;
 
-		rc = receive_msg(fd, &src_eth_addr, &msg);
+		rc = receive_msg(fd, src_eth_addr, &msg);
 		if (rc > 0) {
 			handle_msg(&msg, fd_socket);
 		}

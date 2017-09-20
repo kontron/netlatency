@@ -49,7 +49,12 @@ static gint o_version = 0;
 static gint o_socket = 0;
 static gint o_capture_ethertype = 0x0808;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
+static gint o_ptp_mode = FALSE;
 
+
+//proto 88f7
+//myaddr 0
+//filter L2_V2_EVENT
 
 static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 {
@@ -59,10 +64,10 @@ static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 		struct timespec ts[3];
 	};
 
-	for(cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg,cmsg) ) {
+	for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg,cmsg)) {
 		struct scm_timestamping* scm_ts = NULL;
 
-		if( cmsg->cmsg_level != SOL_SOCKET ) {
+		if (cmsg->cmsg_level != SOL_SOCKET) {
 			continue;
 		}
 
@@ -126,7 +131,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 	ethhdr = (struct ethhdr*)msg->msg_iov->iov_base;
 	tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
-
+	memset(&ts, 0, sizeof(ts));
 	get_hw_timestamp(msg, &ts);
 	calc_stats(&ts, &stats, tp->interval_us);
 
@@ -404,6 +409,9 @@ static GOptionEntry entries[] = {
 	{ "rxfilter", 'f', 0, G_OPTION_ARG_CALLBACK,
 			parse_rx_filter_cb, "Set hw rx filterfilter", NULL },
 
+	{ "ptp", 'p', 0, G_OPTION_ARG_CALLBACK,
+			parse_rx_filter_cb, "Set hw rx filterfilter", NULL },
+
 	{ "version",   'V', 0, G_OPTION_ARG_NONE,
 			&o_version, "Show version inforamtion and exit", NULL },
 	{ NULL, 0, 0, 0, NULL, NULL, NULL }
@@ -449,6 +457,11 @@ int main(int argc, char **argv)
 	}
 
 	ifname = argv[1];
+
+	if (o_ptp_mode) {
+		o_capture_ethertype = ETH_P_1588;
+		o_rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
+	}
 
 	fd = open_capture_interface(ifname);
 	if (fd < 0) {

@@ -47,6 +47,7 @@ static gint o_verbose = 0;
 static gint o_quiet = 0;
 static gint o_version = 0;
 static gint o_socket = 0;
+static gint o_capture_ethertype = 0x0808;
 
 
 static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
@@ -57,7 +58,6 @@ static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 		struct timespec ts[3];
 	};
 
-
 	for(cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg,cmsg) ) {
 		struct scm_timestamping* scm_ts = NULL;
 
@@ -67,14 +67,11 @@ static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 
 		switch (cmsg->cmsg_type) {
 		case SO_TIMESTAMP:
-			//printf("SO_TIMESTAMP: ");
 			break;
 		case SO_TIMESTAMPNS:
-			//printf("SO_TIMESTAMPNS: ");
 			break;
 		case SO_TIMESTAMPING:
 			scm_ts = (struct scm_timestamping*) CMSG_DATA(cmsg);
-			//printf("SO_TIMESTAMPING: ");
 			memcpy(ts, &scm_ts->ts[2], sizeof(struct timespec));
 			break;
 		default:
@@ -100,8 +97,6 @@ static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
 	}
 
 	struct ether_testpacket *tp;
-	struct ethhdr *ethhdr;
-	ethhdr = (struct ethhdr*)msg->msg_iov->iov_base;
 	tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
 
@@ -110,25 +105,6 @@ static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
 		if (memcmp(myaddr->ether_addr_octet, tp->hdr.ether_dhost, ETH_ALEN)) {
 			return -1;
 		}
-	}
-
-	if (o_verbose) {
-		printf("src: %02x:%02x:%02x:%02x:%02x:%02x, ",
-				ethhdr->h_source[0],
-				ethhdr->h_source[1],
-				ethhdr->h_source[2],
-				ethhdr->h_source[3],
-				ethhdr->h_source[4],
-				ethhdr->h_source[5]);
-		printf("dst: %02x:%02x:%02x:%02x:%02x:%02x, ",
-				ethhdr->h_dest[0],
-				ethhdr->h_dest[1],
-				ethhdr->h_dest[2],
-				ethhdr->h_dest[3],
-				ethhdr->h_dest[4],
-				ethhdr->h_dest[5]);
-
-		printf("proto: 0x%04x, ", ntohs(ethhdr->h_proto));
 	}
 
 	return n;
@@ -149,17 +125,46 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 	ethhdr = (struct ethhdr*)msg->msg_iov->iov_base;
 	tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
-	(void)socket;
+
+	get_hw_timestamp(msg, &ts);
+	calc_stats(&ts, &stats, tp->interval_us);
+
+	char str[1024];
+	memset(str, 0, sizeof(str));
+
+	/* build result message string */
+	{
+		switch (o_capture_ethertype) {
+		case 0x00808:
+			snprintf(str, sizeof(str), "TS(l): %lld.%.06ld; TS(r): %lld.%.06ld; SEQ: %-d; DIFF: %ld; MEAN: %ld; MAX: %ld;\n",
+				(long long)ts.tv_sec,
+				(ts.tv_nsec / 1000),
+				(long long)tp->ts.tv_sec,
+				(tp->ts.tv_nsec / 1000),
+				tp->seq,
+				(stats.diff.tv_nsec / 1000),
+				(stats.mean.tv_nsec / 1000),
+				(stats.max.tv_nsec / 1000)
+			);
+			break;
+		default:
+			snprintf(str, sizeof(str), "TS(l): %lld.%.06ld;\n",
+				(long long)ts.tv_sec,
+				(ts.tv_nsec / 1000)
+			);
+			break;
+		}
+	}
 
 	if (o_verbose) {
-		printf("src: %02x:%02x:%02x:%02x:%02x:%02x, ",
+		printf("src: %02x:%02x:%02x:%02x:%02x:%02x; ",
 				ethhdr->h_source[0],
 				ethhdr->h_source[1],
 				ethhdr->h_source[2],
 				ethhdr->h_source[3],
 				ethhdr->h_source[4],
 				ethhdr->h_source[5]);
-		printf("dst: %02x:%02x:%02x:%02x:%02x:%02x, ",
+		printf("dst: %02x:%02x:%02x:%02x:%02x:%02x; ",
 				ethhdr->h_dest[0],
 				ethhdr->h_dest[1],
 				ethhdr->h_dest[2],
@@ -168,35 +173,10 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 				ethhdr->h_dest[5]);
 
 		printf("proto: 0x%04x, ", ntohs(ethhdr->h_proto));
-	}
-
-	get_hw_timestamp(msg, &ts);
-	calc_stats(&ts, &stats, tp->interval_us);
-
-	char str[1024];
-
-	memset(str, 0, sizeof(str));
-	snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %ld; MEAN: %ld; MAX: %ld;\n",
-		tp->seq,
-		(long long)ts.tv_sec,
-		(ts.tv_nsec / 1000),
-
-		(long long)tp->ts.tv_sec,
-		(tp->ts.tv_nsec / 1000),
-
-		(stats.diff.tv_nsec / 1000),
-
-		(stats.mean.tv_nsec / 1000),
-
-		(stats.max.tv_nsec / 1000)
-	);
-
-
-	if (o_verbose) {
 		printf("%s", str);
 	}
 
-	{
+	if (fd_socket != -1) {
 		int i;
 		int sd;
 		int activity;
@@ -207,7 +187,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 		FD_SET(fd_socket, &readfds);
 		max_fd = fd_socket;
 
-		//add child sockets to set
+		/* add child sockets to set */
 		for (i = 0 ; i < MAX_CLIENTS; i++) {
 			sd = client_socket[i];
 			if (sd > 0) {
@@ -225,7 +205,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 			perror("select error");
 		}
 
-		// check for new incoming connection
+		/* check for new incoming connection */
 		if (FD_ISSET(fd_socket, &readfds)) {
 			if ((new_socket = accept(fd_socket, NULL, NULL)) < 0) {
 				perror("accept");
@@ -233,7 +213,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 			}
 
 
-			// todo check for max reached ...
+			/* todo check for max reached ... */
 			for (i = 0 ; i < MAX_CLIENTS; i++) {
 				if (client_socket[i] == 0) {
 					client_socket[i] = new_socket;
@@ -242,7 +222,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 			}
 		}
 
-		// handle all active connecitons
+		/* handle all active connecitons */
 		for (i = 0; i < MAX_CLIENTS; i++) {
 			sd = client_socket[i];
 			if (sd == 0) {
@@ -257,13 +237,107 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 			}
 
 			if (write(sd, str, strlen(str)) <= 0) {
-//			if (send(sd, str, strlen(str), 0) <= 0) {
 				perror("write to socket rc=");
 			}
 		}
 	}
 
 	return 0;
+}
+
+int get_own_eth_address(int fd, gchar *ifname, struct ether_addr *src_eth_addr)
+{
+	struct ifreq ifopts;
+
+	/* determine own ethernet address */
+	memset(&ifopts, 0, sizeof(struct ifreq));
+	strncpy(ifopts.ifr_name, ifname, sizeof(ifopts.ifr_name));
+	if (ioctl(fd, SIOCGIFHWADDR, &ifopts) < 0) {
+		perror("ioctl");
+		return -1;
+	}
+
+	memcpy(src_eth_addr, &ifopts.ifr_hwaddr.sa_data, ETH_ALEN);
+
+	return 0;
+}
+
+int open_capture_interface(gchar *ifname)
+{
+	int rc;
+	int fd;
+	struct ifreq ifopts;
+	int sockopt;
+
+	fd = socket(PF_PACKET, SOCK_RAW, htons(o_capture_ethertype));
+	if (fd < 0) {
+		perror("socket()");
+		return -1;
+	}
+
+	if (0) {
+		/* Set interface to promiscuous mode - do we need to do this every time? */
+		/* no .. check if promiscuous mode was set before */
+		strncpy(ifopts.ifr_name, ifname, IFNAMSIZ-1);
+		ioctl(fd, SIOCGIFFLAGS, &ifopts);
+		ifopts.ifr_flags |= IFF_PROMISC;
+		ioctl(fd, SIOCSIFFLAGS, &ifopts);
+	}
+
+	{
+		sockopt = 0;
+		/* Allow the socket to be reused - incase connection is closed prematurely */
+		rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt);
+		if (rc == -1) {
+			perror("setsockopt() ... enable");
+			close(fd);
+			return -1;
+		}
+	}
+
+	/* configure timestamping */
+	{
+		struct ifreq ifr;
+		struct hwtstamp_config config;
+
+		config.flags = 0;
+		config.tx_type = HWTSTAMP_TX_ON;
+		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		if (config.tx_type < 0 || config.rx_filter < 0) {
+			return -1;
+		}
+
+		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
+		ifr.ifr_data = (caddr_t)&config;
+		if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
+			perror("ioctl() ... configure timestamping\n");
+			return -1;
+		}
+	}
+
+	/* Enable timestamping */
+	{
+		sockopt = 0;
+		sockopt = SOF_TIMESTAMPING_RX_HARDWARE
+				| SOF_TIMESTAMPING_RAW_HARDWARE
+				| SOF_TIMESTAMPING_SYS_HARDWARE
+				| SOF_TIMESTAMPING_SOFTWARE;
+		rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &sockopt, sizeof(sockopt));
+		if (rc == -1) {
+			perror("setsockopt() ... enable timestamp");
+			return -1;
+		}
+	}
+
+	/* Bind to device */
+	rc = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, ifname, IFNAMSIZ-1);
+	if (rc == -1) {
+		perror("setsockopt() ... bind to device");
+		close(fd);
+		return -1;
+	}
+
+	return fd;
 }
 
 void usage(void)
@@ -276,8 +350,10 @@ static GOptionEntry entries[] = {
 			&o_verbose, "Be verbose", NULL },
 	{ "quiet",     'q', 0, G_OPTION_ARG_NONE,
 			&o_quiet, "Suppress error messages", NULL },
-	{ "socket",     's', 0, G_OPTION_ARG_NONE,
+	{ "socket",    's', 0, G_OPTION_ARG_NONE,
 			&o_socket, "Write stats to domain socket", NULL },
+	{ "ethertype", 'e', 0, G_OPTION_ARG_INT,
+			&o_capture_ethertype, "Set ethertype to filter. Default is 0x0808. ETH_P_ALL is 0x3", NULL },
 	{ "version",   'V', 0, G_OPTION_ARG_NONE,
 			&o_version, "Show version inforamtion and exit", NULL },
 	{ NULL, 0, 0, 0, NULL, NULL, NULL }
@@ -312,10 +388,7 @@ int main(int argc, char **argv)
 	int rv;
 	int fd;
 	int fd_socket = -1;
-
-	struct ifreq ifopts;
 	struct ether_addr src_eth_addr;
-
 	char *ifname = NULL;
 
 	parse_command_line_options(&argc, argv);
@@ -327,88 +400,21 @@ int main(int argc, char **argv)
 
 	ifname = argv[1];
 
-	//fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP));
-	//fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-	fd = socket(PF_PACKET, SOCK_RAW, htons(0x0808));
+	fd = open_capture_interface(ifname);
 	if (fd < 0) {
-		perror("socket()");
+		perror("open_capture_interface()");
 		return -1;
 	}
 
-	/* determine own ethernet address */
-	memset(&ifopts, 0, sizeof(struct ifreq));
-	strncpy(ifopts.ifr_name, argv[1], sizeof(ifopts.ifr_name));
-	if (ioctl(fd, SIOCGIFHWADDR, &ifopts) < 0) {
-		perror("ioctl");
-		return -1;
+	rv = get_own_eth_address(fd, ifname, &src_eth_addr);
+	if (rv) {
+		perror("get_own_eth_address() ... bind to device");
+		close(fd);
+		exit(EXIT_FAILURE);
 	}
 
 	if (o_socket) {
-//		fd_socket = open_client_socket(socket_path);
 		fd_socket = open_server_socket(socket_path);
-	}
-
-	memcpy(&src_eth_addr, &ifopts.ifr_hwaddr.sa_data, ETH_ALEN);
-
-	if (0) {
-		/* Set interface to promiscuous mode - do we need to do this every time? */
-		/* no .. check if promiscuous mode was set before */
-		strncpy(ifopts.ifr_name, ifname, IFNAMSIZ-1);
-		ioctl(fd, SIOCGIFFLAGS, &ifopts);
-		ifopts.ifr_flags |= IFF_PROMISC;
-		ioctl(fd, SIOCSIFFLAGS, &ifopts);
-	}
-
-	{
-		int sockopt;
-		/* Allow the socket to be reused - incase connection is closed prematurely */
-		rv = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof sockopt);
-		if (rv == -1) {
-			perror("setsockopt() ... enable");
-			close(fd);
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	/* configure timestamping */
-	{
-		struct ifreq ifr;
-		struct hwtstamp_config config;
-
-		config.flags = 0;
-		config.tx_type = HWTSTAMP_TX_ON;
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
-		if (config.tx_type < 0 || config.rx_filter < 0) {
-			return 2;
-		}
-
-		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
-		ifr.ifr_data = (caddr_t)&config;
-		if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
-			perror("ioctl()\n");
-			return 1;
-		}
-	}
-
-	/* Enable timestamping */
-	{
-		int optval = 1;
-		optval = SOF_TIMESTAMPING_RX_HARDWARE
-				| SOF_TIMESTAMPING_RAW_HARDWARE
-				| SOF_TIMESTAMPING_SYS_HARDWARE
-				| SOF_TIMESTAMPING_SOFTWARE;
-		rv = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &optval, sizeof(int));
-		if (rv == -1) {
-			perror("setsockopt() ... enable timestamp");
-		}
-	}
-
-	/* Bind to device */
-	setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, ifname, IFNAMSIZ-1);
-	if (rv == -1) {
-		perror("setsockopt() ... bind to device");
-		close(fd);
-		exit(EXIT_FAILURE);
 	}
 
 	memset(&stats, 0, sizeof(struct stats));

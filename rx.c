@@ -385,7 +385,7 @@ gint parse_command_line_options(gint *argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	int rv;
+	int rc;
 	int fd;
 	int fd_socket = -1;
 	struct ether_addr src_eth_addr;
@@ -406,8 +406,8 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	rv = get_own_eth_address(fd, ifname, &src_eth_addr);
-	if (rv) {
+	rc = get_own_eth_address(fd, ifname, &src_eth_addr);
+	if (rc) {
 		perror("get_own_eth_address() ... bind to device");
 		close(fd);
 		exit(EXIT_FAILURE);
@@ -435,8 +435,8 @@ int main(int argc, char **argv)
 		msg.msg_control = control;
 		msg.msg_controllen = BUF_CONTROL_SIZE;
 
-		rv = receive_msg(fd, &src_eth_addr, &msg);
-		if (rv > 0) {
+		rc = receive_msg(fd, &src_eth_addr, &msg);
+		if (rc > 0) {
 			handle_msg(&msg, fd_socket);
 		}
 	}

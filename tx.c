@@ -524,30 +524,6 @@ int main(int argc, char **argv)
 
 				calc_stats(&ts, &stats, o_interval_us);
 
-#if 0
-				printf("SEQ %4d ", tp->seq);
-				printf("NOW   %lld.%.03ld.%03ld",
-					(long long)ts.tv_sec,
-					ts.tv_nsec / 1000000,
-					(ts.tv_nsec / 1000)%1000
-				);
-				printf("  DIFF to prev  %lld.%.03ld.%03ld",
-					(long long)stats.diff.tv_sec,
-					stats.diff.tv_nsec / 1000000,
-					(stats.diff.tv_nsec / 1000)%1000
-				);
-				printf("  MEAN  %lld.%.03ld.%03ld",
-					(long long)stats.mean.tv_sec,
-					stats.mean.tv_nsec / 1000000,
-					(stats.mean.tv_nsec / 1000)%1000
-				);
-				printf("  MAX   %lld.%.03ld.%03ld",
-					(long long)stats.max.tv_sec,
-					stats.max.tv_nsec / 1000000,
-					(stats.max.tv_nsec / 1000)%1000
-				);
-				printf("\n");
-#endif
 				char str[1024];
 
 				memset(str, 0, sizeof(str));
@@ -569,7 +545,9 @@ int main(int argc, char **argv)
 						(stats.max.tv_nsec / 1000)
 				);
 
-				printf("%s", str);
+				if (o_verbose) {
+					printf("%s", str);
+				}
 
 				/* update new timestamp in packet */
 				memcpy(&tp->ts, &ts, sizeof(struct timespec));

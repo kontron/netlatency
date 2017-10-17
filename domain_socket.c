@@ -5,6 +5,7 @@
 #include <stdlib.h>
 //#include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
 
 
 int open_client_socket(char *path)
@@ -48,6 +49,8 @@ int open_server_socket(char *socket_path)
 		exit(EXIT_FAILURE);
 	}
 #endif
+
+	signal(SIGPIPE, SIG_IGN);
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;

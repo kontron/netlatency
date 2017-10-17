@@ -243,7 +243,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 			}
 
 			if (write(sd, str, strlen(str)) <= 0) {
-				perror("write to socket rc=");
+				client_socket[i] = 0;
 			}
 		}
 	}

@@ -62,8 +62,9 @@ static gint o_run_thread = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
 static gint o_memlock = 1;
+static gint o_packet_size = -1;
 
-static uint8_t buf[1024];
+static uint8_t buf[2048];
 struct ether_testpacket *tp = (struct ether_testpacket*)buf;
 
 struct eth_handle {
@@ -136,23 +137,25 @@ void usage(void)
 }
 
 static GOptionEntry entries[] = {
-	{ "destination",   'd', 0, G_OPTION_ARG_STRING,
+	{ "destination", 'd', 0, G_OPTION_ARG_STRING,
 			&o_destination_mac, "Destination MAC address", NULL },
-	{ "interval",   'i', 0, G_OPTION_ARG_INT,
+	{ "interval",    'i', 0, G_OPTION_ARG_INT,
 			&o_interval_us, "Interval in micro seconds", NULL },
-	{ "timer",   't', 0, G_OPTION_ARG_NONE,
+	{ "timer",       't', 0, G_OPTION_ARG_NONE,
 			&o_run_timer, "Run timer", NULL },
-	{ "thread",   'r', 0, G_OPTION_ARG_NONE,
+	{ "thread",      'r', 0, G_OPTION_ARG_NONE,
 			&o_run_thread, "Run in thread", NULL },
-	{ "prio",   'p', 0, G_OPTION_ARG_INT,
+	{ "prio",        'p', 0, G_OPTION_ARG_INT,
 			&o_sched_prio, "Set scheduler priority", NULL },
-	{ "memlock",   'm', 0, G_OPTION_ARG_INT,
+	{ "memlock",     'm', 0, G_OPTION_ARG_INT,
 			&o_memlock, "Configure memlock (default is 1)", NULL },
-	{ "verbose",   'v', 0, G_OPTION_ARG_NONE,
+	{ "padding",     'P', 0, G_OPTION_ARG_INT,
+			&o_packet_size, "Set the packet size", NULL },
+	{ "verbose",     'v', 0, G_OPTION_ARG_NONE,
 			&o_verbose, "Be verbose", NULL },
-	{ "quiet",     'q', 0, G_OPTION_ARG_NONE,
+	{ "quiet",       'q', 0, G_OPTION_ARG_NONE,
 			&o_quiet, "Suppress error messages", NULL },
-	{ "version",   'V', 0, G_OPTION_ARG_NONE,
+	{ "version",     'V', 0, G_OPTION_ARG_NONE,
 			&o_version, "Show version inforamtion and exit", NULL },
 	{ NULL, 0, 0, 0, NULL, NULL, NULL }
 };
@@ -469,6 +472,15 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	if (o_packet_size == -1) {
+		o_packet_size = 64;
+	} else if (o_packet_size > 64 && o_packet_size < 1500) {
+
+	} else {
+		printf("not supported packet size\n");
+		return -1;
+	}
+
 	eth = eth_open(argv[1]);
 	if (eth == NULL) {
 		perror("eth_open");
@@ -499,6 +511,7 @@ int main(int argc, char **argv)
 
 	/* ethertype */
 	tp->hdr.ether_type = 0x0808;
+
 
 	if (o_interval_us) {
 
@@ -553,7 +566,7 @@ int main(int argc, char **argv)
 				memcpy(&tp->ts, &ts, sizeof(struct timespec));
 				tp->interval_us = o_interval_us;
 
-				eth_send(eth, buf, 64);
+				eth_send(eth, buf, o_packet_size);
 
 				nanosleep_until(&sleep_ts, o_interval_us * 1000);
 				// increase sequence number
@@ -573,7 +586,7 @@ int main(int argc, char **argv)
 		memcpy(buf+idx, &ts, sizeof(struct timespec));
 		idx += sizeof(struct timespec);
 
-		eth_send(eth, buf, 64);
+		eth_send(eth, buf, o_packet_size);
 	}
 
 	return rv;

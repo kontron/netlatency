@@ -15,6 +15,7 @@
 #include <pthread.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 #include <glib.h>
 
@@ -22,7 +23,7 @@
 
 #include "config_control.h"
 
-#define CMD_MSG_SOCKET "/tmp/tx_cmd_msg.socket"
+#define DEF_SOCKET_PORT  6666
 
 #define UNUSED(x) (void)x
 
@@ -58,6 +59,45 @@ static void set_config_control (gchar* pCmd)
 
 #define MAX_CLIENTS 4
 
+int open_server_tcp_socket(int port)
+{
+    struct sockaddr_in addr;
+    int fd;
+    int opt;
+
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        perror("socket error");
+        exit(-1);
+    }
+
+    /* set master socket to allow multiple connections ,
+     * this is just a good habit, it will work without this
+     */
+    opt = 0;
+    if( setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+
+
+    if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+        perror("bind error");
+        exit(-1);
+    }
+
+    if (listen(fd, 5) == -1) {
+        perror("listen error");
+        exit(-1);
+    }
+
+    return fd;
+}
+
 static void *listen_config_control (void* arg)
 {
     int client_socket[MAX_CLIENTS];
@@ -68,7 +108,7 @@ static void *listen_config_control (void* arg)
 
     memset(client_socket, 0, sizeof(client_socket));
 
-    fd_socket = open_server_socket(CMD_MSG_SOCKET);
+    fd_socket = open_server_tcp_socket(DEF_SOCKET_PORT);
 
     while (1) {
         int i;

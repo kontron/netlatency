@@ -533,7 +533,7 @@ int main(int argc, char **argv)
 				char str[1024];
 
 				memset(str, 0, sizeof(str));
-				snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+				snprintf(str, sizeof(str), "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
 						tp->seq,
 						(long long)ts.tv_sec,
 						(ts.tv_nsec / 1000),
@@ -550,7 +550,6 @@ int main(int argc, char **argv)
 						(long long)stats.max.tv_sec,
 						(stats.max.tv_nsec / 1000)
 				);
-
 
 				/* update new timestamp in packet */
 				memcpy(&tp->ts, &ts, sizeof(struct timespec));

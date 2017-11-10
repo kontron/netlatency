@@ -532,14 +532,17 @@ int main(int argc, char **argv)
 
 				char str[1024];
 
+				/* update new timestamp in packet */
+				memcpy(&tp->ts, &ts, sizeof(struct timespec));
+
 				memset(str, 0, sizeof(str));
 				snprintf(str, sizeof(str), "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
 						tp->seq,
 						(long long)ts.tv_sec,
 						(ts.tv_nsec / 1000),
 
-						(long long)tp->ts.tv_sec,
-						(tp->ts.tv_nsec / 1000),
+						0ULL,
+						0UL,
 
 						(long long)stats.diff.tv_sec,
 						(stats.diff.tv_nsec / 1000),
@@ -551,8 +554,6 @@ int main(int argc, char **argv)
 						(stats.max.tv_nsec / 1000)
 				);
 
-				/* update new timestamp in packet */
-				memcpy(&tp->ts, &ts, sizeof(struct timespec));
 				tp->interval_us = o_interval_us;
 
 				eth_send(eth, buf, o_packet_size);

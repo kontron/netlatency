@@ -24,7 +24,7 @@ void nanosleep_until(struct timespec *ts, int delay)
 
 
 #define TIMESLICE_INTERVAL_MS 10000000
-#define TIME_BEFORE_NS 200000
+#define TIME_BEFORE_NS 300000
 
 int get_timeval_to_next_slice(struct timespec *now, struct timespec *next, int interval_ms)
 {

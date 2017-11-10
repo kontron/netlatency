@@ -52,6 +52,7 @@
 #include "stats.h"
 #include "data.h"
 #include "timer.h"
+#include "config_control.h"
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;
@@ -63,7 +64,7 @@ static gint o_run_thread = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
 static gint o_memlock = 1;
-static gint o_packet_size = -1;
+gint o_packet_size = -1;
 
 static uint8_t buf[2048];
 struct ether_testpacket *tp = (struct ether_testpacket*)buf;
@@ -470,6 +471,9 @@ int main(int argc, char **argv)
 		printf("not supported packet size\n");
 		return -1;
 	}
+
+    /* start configuration control task */
+	start_config_control();
 
 	eth = eth_open(argv[1]);
 	if (eth == NULL) {

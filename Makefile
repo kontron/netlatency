@@ -97,7 +97,7 @@ install-rx: $(o)rx
 	$(INSTALL) -m 0755 $(o)rx $(DESTDIR)$(BINDIR)/
 
 
-tx_SOURCES := tx.c stats.c timer.c
+tx_SOURCES := tx.c stats.c timer.c domain_socket.c config_control.c
 tx_OBJECTS := $(addprefix $(o),$(tx_SOURCES:.c=.o))
 
 $(o)tx: $(tx_OBJECTS)

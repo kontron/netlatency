@@ -51,6 +51,7 @@
 
 #include "stats.h"
 #include "data.h"
+#include "timer.h"
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;
@@ -74,8 +75,6 @@ struct eth_handle {
 };
 
 typedef struct eth_handle eth_t;
-
-static eth_t *eth = NULL;
 
 eth_t *eth_close(eth_t *e)
 {
@@ -119,18 +118,7 @@ ssize_t eth_send(eth_t *e, const void *buf, size_t len)
 	e->sll.sll_protocol = eth->ether_type;
 
 	return (sendto(e->fd, buf, len, 0, (struct sockaddr *)&e->sll,
-	    sizeof(e->sll)));
-}
-
-static void nanosleep_until(struct timespec *ts, int delay)
-{
-	ts->tv_nsec += delay;
-	/* check for next second */
-	if (ts->tv_nsec >= 1000000000) {
-		ts->tv_nsec -= 1000000000;
-		ts->tv_sec++;
-	}
-	clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, ts, NULL);
+			sizeof(e->sll)));
 }
 
 void usage(void)
@@ -185,72 +173,6 @@ gint parse_command_line_options(gint *argc, char **argv)
 	return 0;
 }
 
-void busy_poll_to_begin_of_millisecond(void)
-{
-	struct timespec ts;
-	clock_gettime(CLOCK_REALTIME, &ts);
-
-	while (((ts.tv_nsec / 1000) % 1000) != 0) {
-		clock_gettime(CLOCK_REALTIME, &ts);
-	}
-
-}
-
-void run_worker_loop(void)
-{
-	struct timespec sleep_ts;
-	struct stats stats;
-	struct timespec ts;
-
-	memset(&stats, 0, sizeof(struct stats));
-
-	clock_gettime(CLOCK_MONOTONIC, &sleep_ts);
-
-	/* wait for millisecond == 0 */
-	busy_poll_to_begin_of_millisecond();
-
-	while (1) {
-		clock_gettime(CLOCK_REALTIME, &ts);
-
-		calc_stats(&ts, &stats, o_interval_us);
-
-		char str[1024];
-
-		memset(str, 0, sizeof(str));
-		snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
-				tp->seq,
-				(long long)ts.tv_sec,
-				(ts.tv_nsec / 1000),
-
-				(long long)tp->ts.tv_sec,
-				(tp->ts.tv_nsec / 1000),
-
-				(long long)stats.diff.tv_sec,
-				(stats.diff.tv_nsec / 1000),
-
-				(long long)stats.mean.tv_sec,
-				(stats.mean.tv_nsec / 1000),
-
-				(long long)stats.max.tv_sec,
-				(stats.max.tv_nsec / 1000)
-		);
-
-		if (o_verbose) {
-			printf("%s", str);
-		}
-
-		/* update new timestamp in packet */
-		memcpy(&tp->ts, &ts, sizeof(struct timespec));
-		tp->interval_us = o_interval_us;
-
-		eth_send(eth, buf, o_packet_size);
-
-		nanosleep_until(&sleep_ts, o_interval_us * 1000);
-		// increase sequence number
-		tp->seq++;
-	}
-}
-
 static void config_thread(void)
 {
 	int rc;
@@ -285,6 +207,7 @@ static void config_thread(void)
 
 	sp.sched_priority = o_sched_prio;
 	rc = pthread_setschedparam(pthread_self(), policy, &sp);
+	//rc = pthread_setschedparam(pthread_self(), SCHED_RR, &sp);
 	if (rc) {
 		perror("pthread_setschedparam()");
 		exit (1);
@@ -328,6 +251,17 @@ static void timer_handler(int signum)
 		(ts.tv_nsec / 1000)%1000,
 		ts.tv_nsec %1000
 	);
+}
+
+void busy_poll(void)
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+
+	while (((ts.tv_nsec / 1000) % 1000) != 0) {
+		clock_gettime(CLOCK_REALTIME, &ts);
+	}
+
 }
 
 void run_by_timer(void)
@@ -379,7 +313,72 @@ void * thread_code(void)
 
 void *thread_func(void *data)
 {
+	struct timespec sleep_ts;
+	struct timespec ts;
+	/* Do RT specific stuff here */
 	(void)data;
+	clock_gettime(CLOCK_MONOTONIC, &sleep_ts);
+
+	struct stats stats;
+
+	memset(&stats, 0, sizeof(struct stats));
+
+
+	while (1) {
+		clock_gettime(CLOCK_REALTIME, &ts);
+
+		calc_stats(&ts, &stats, o_interval_us);
+
+#if 0
+		printf("NOW   %lld.%.03ld.%03ld",
+			(long long)ts.tv_sec,
+			ts.tv_nsec / 1000000,
+			(ts.tv_nsec / 1000)%1000
+		);
+		printf("  DIFF to prev  %lld.%.03ld.%03ld",
+			(long long)stats.diff.tv_sec,
+			stats.diff.tv_nsec / 1000000,
+			(stats.diff.tv_nsec / 1000)%1000
+		);
+		printf("  MEAN  %lld.%.03ld.%03ld",
+			(long long)stats.mean.tv_sec,
+			stats.mean.tv_nsec / 1000000,
+			(stats.mean.tv_nsec / 1000)%1000
+		);
+		printf("  MAX   %lld.%.03ld.%03ld",
+			(long long)stats.max.tv_sec,
+			stats.max.tv_nsec / 1000000,
+			(stats.max.tv_nsec / 1000)%1000
+		);
+		printf("\n");
+#endif
+		char str[1024];
+
+		memset(str, 0, sizeof(str));
+		snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+				tp->seq,
+				(long long)ts.tv_sec,
+				(ts.tv_nsec / 1000),
+
+				(long long)tp->ts.tv_sec,
+				(tp->ts.tv_nsec / 1000),
+
+				(long long)stats.diff.tv_sec,
+				(stats.diff.tv_nsec / 1000),
+
+				(long long)stats.mean.tv_sec,
+				(stats.mean.tv_nsec / 1000),
+
+				(long long)stats.max.tv_sec,
+				(stats.max.tv_nsec / 1000)
+		);
+
+		printf("%s", str);
+
+
+		nanosleep_until(&sleep_ts, o_interval_us * 1000);
+	}
+
 	return NULL;
 }
 
@@ -450,10 +449,11 @@ int main(int argc, char **argv)
 {
 	int rv = 0;
 
-	struct timespec ts;
+	eth_t *eth;
 	struct ifreq ifopts;
 	size_t idx = 0;
 
+	struct timespec ts;
 
 	parse_command_line_options(&argc, argv);
 
@@ -512,7 +512,61 @@ int main(int argc, char **argv)
 			run_thread();
 
 		} else {
-			run_worker_loop();
+			struct timespec sleep_ts;
+			struct stats stats;
+
+			memset(&stats, 0, sizeof(struct stats));
+
+			clock_gettime(CLOCK_MONOTONIC, &sleep_ts);
+
+			/* wait for millisecond == 0 */
+			busy_poll();
+
+			while (1) {
+
+				/* sync to desired millisecond start */
+				wait_for_next_timeslice(o_interval_us / 1000);
+
+				clock_gettime(CLOCK_REALTIME, &ts);
+				calc_stats(&ts, &stats, o_interval_us);
+
+				char str[1024];
+
+				memset(str, 0, sizeof(str));
+				snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+						tp->seq,
+						(long long)ts.tv_sec,
+						(ts.tv_nsec / 1000),
+
+						(long long)tp->ts.tv_sec,
+						(tp->ts.tv_nsec / 1000),
+
+						(long long)stats.diff.tv_sec,
+						(stats.diff.tv_nsec / 1000),
+
+						(long long)stats.mean.tv_sec,
+						(stats.mean.tv_nsec / 1000),
+
+						(long long)stats.max.tv_sec,
+						(stats.max.tv_nsec / 1000)
+				);
+
+
+				/* update new timestamp in packet */
+				memcpy(&tp->ts, &ts, sizeof(struct timespec));
+				tp->interval_us = o_interval_us;
+
+				eth_send(eth, buf, o_packet_size);
+
+				if (o_verbose) {
+					printf("%s", str);
+				}
+
+				/* sync to beginning of millisecond */
+//				nanosleep_until(&sleep_ts, o_interval_us * 1000);
+				// increase sequence number
+				tp->seq++;
+			}
 		}
 
 	} else {

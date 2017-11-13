@@ -126,14 +126,23 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 {
 	struct ether_testpacket *tp;
 	struct ethhdr *ethhdr;
-	struct timespec ts;
+	struct timespec rx_ts;
+	struct timespec diff_ts;
 
 	ethhdr = (struct ethhdr*)msg->msg_iov->iov_base;
 	tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
-	memset(&ts, 0, sizeof(ts));
-	get_hw_timestamp(msg, &ts);
-	calc_stats(&ts, &stats, tp->interval_us);
+	memset(&rx_ts, 0, sizeof(rx_ts));
+	get_hw_timestamp(msg, &rx_ts);
+
+	memset(&rx_ts, 0, sizeof(rx_ts));
+	get_hw_timestamp(msg, &rx_ts);
+
+	/* calc diff between timestamp in testpacket tp and received packet rx_ts */
+	timespec_diff(&tp->ts, &rx_ts, &diff_ts);
+
+	/* calc stats wtih stored previous packages */
+	calc_stats(&rx_ts, &stats, tp->interval_us);
 
 	char str[1024];
 	memset(str, 0, sizeof(str));
@@ -141,10 +150,11 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 	/* build result message string */
 	{
 		switch (o_capture_ethertype) {
+#if 0
 		case 0x00808:
 			snprintf(str, sizeof(str), "TS(l): %lld.%.06ld; TS(r): %lld.%.06ld; SEQ: %-d; DIFF: %ld; MEAN: %ld; MAX: %ld;\n",
-				(long long)ts.tv_sec,
-				(ts.tv_nsec / 1000),
+				(long long)rx_ts.tv_sec,
+				(rx_ts.tv_nsec / 1000),
 				(long long)tp->ts.tv_sec,
 				(tp->ts.tv_nsec / 1000),
 				tp->seq,
@@ -153,10 +163,19 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 				(stats.max.tv_nsec / 1000)
 			);
 			break;
+#endif
+		case 0x00808:
+			snprintf(str, sizeof(str), "TS(rx): %lld.%.06ld; TS(tx): %lld.%.06ld; SEQ: %-d; DIFF: %ld;\n",
+				(long long)rx_ts.tv_sec, (rx_ts.tv_nsec / 1000),
+				(long long)tp->ts.tv_sec, (tp->ts.tv_nsec / 1000),
+				tp->seq,
+				(diff_ts.tv_nsec / 1000)
+			);
+			break;
 		default:
 			snprintf(str, sizeof(str), "TS(l): %lld.%.06ld;\n",
-				(long long)ts.tv_sec,
-				(ts.tv_nsec / 1000)
+				(long long)rx_ts.tv_sec,
+				(rx_ts.tv_nsec / 1000)
 			);
 			break;
 		}

@@ -10,4 +10,7 @@ struct stats {
 };
 
 void calc_stats(struct timespec *ts, struct stats *stats, int interval_us);
+
+void timespec_diff(struct timespec *start, struct timespec *stop,
+		struct timespec *result);
 #endif

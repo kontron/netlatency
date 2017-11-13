@@ -71,6 +71,7 @@ static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
 static gint o_memlock = 1;
 gint o_packet_size = -1;
+gboolean o_pause_loop = FALSE;
 
 static uint8_t buf[2048];
 struct ether_testpacket *tp = (struct ether_testpacket*)buf;
@@ -493,7 +494,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	configure_tx_timestamp(eth, argv[1]);
+//	configure_tx_timestamp(eth->fd, argv[1]);
 
 	config_thread();
 	memset(tp, 0, sizeof(struct ether_testpacket));
@@ -542,6 +543,11 @@ int main(int argc, char **argv)
 			busy_poll();
 
 			while (1) {
+
+				if (o_pause_loop) {
+					sleep(1);
+					continue;
+				}
 
 				/* sync to desired millisecond start */
 				wait_for_next_timeslice(o_interval_us / 1000);

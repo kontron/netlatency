@@ -1,6 +1,28 @@
 
 #include <linux/net_tstamp.h>
-int configure_tx_timestamp(eth_t *eth, char* ifname)
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <netpacket/packet.h>
+//#include <net/ethernet.h>
+#include <netinet/in.h>
+#include <netinet/ether.h>
+#include <linux/sockios.h>
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <time.h>
+#include <sys/mman.h>
+#include <sys/time.h>
+#include <inttypes.h>
+
+#include "timestamps.h"
+
+#include <linux/errqueue.h>
+
+int configure_tx_timestamp(int fd, char* ifname)
 {
 	int opt = SOF_TIMESTAMPING_TX_SCHED |
 				SOF_TIMESTAMPING_TX_SOFTWARE |
@@ -24,13 +46,13 @@ int configure_tx_timestamp(eth_t *eth, char* ifname)
 
 		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
 		ifr.ifr_data = (caddr_t)&config;
-		if (ioctl(eth->fd, SIOCSHWTSTAMP, &ifr)) {
+		if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
 			perror("ioctl() ... configure timestamping\n");
 			return -1;
 		}
 	}
 
-	if (setsockopt(eth->fd, SOL_SOCKET, SO_TIMESTAMPING,
+	if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
 		       (char *) &opt, sizeof(opt))) {
 		perror("setsockopt timestamping");
 	}
@@ -170,7 +192,7 @@ static int __recv_errmsg_cmsg(struct msghdr *msg, int payload_len, char *data)
 }
 
 #include <poll.h>
-static void __poll(int fd)
+void __poll(int fd)
 {
 	struct pollfd pollfd;
 	int ret;

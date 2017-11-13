@@ -28,6 +28,7 @@
 #define UNUSED(x) (void)x
 
 extern gboolean o_pause_loop;
+extern gint o_interval_us;
 
 /*---------------------------------------------------------------------------
  * Handle configuration-control commands
@@ -38,13 +39,15 @@ static void set_config_control (gchar* pCmd)
     gchar** pCmdEntry;
     int     iValue;
 
-    printf("cmd=%s\n", pCmd);
     pCmdEntry = g_strsplit_set(pCmd, "=", 2);
-    if (strcmp (pCmdEntry[0], "state") == 0) {
+    if (strcmp (pCmdEntry[0], "interval_usec") == 0) {
+	guint64 interval;
+        interval = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
+	o_interval_us = interval;
+
+    } else if (strcmp (pCmdEntry[0], "state") == 0) {
 	guint64 enable;
         enable = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
-
-        printf("... pCmdEntry[1]=%s %ld\n", pCmdEntry[1], enable);
 	o_pause_loop = enable ? FALSE : TRUE;
 
     } else if (strcmp (pCmdEntry[0], "size") == 0) {
@@ -54,7 +57,6 @@ static void set_config_control (gchar* pCmd)
             fprintf(stderr, "Size must be greater than 64 (%d)\n", iValue);
         }
         else {
-            printf("set size=%d\n", iValue);
             o_packet_size = iValue;
         }
     }

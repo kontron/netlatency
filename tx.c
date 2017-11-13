@@ -64,12 +64,13 @@ static gchar *help_description = NULL;
 static gint o_verbose = 0;
 static gint o_quiet = 0;
 static gint o_version = 0;
-static gint o_interval_us = 0;
 static gint o_run_timer = 0;
 static gint o_run_thread = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
 static gint o_memlock = 1;
+
+gint o_interval_us = 0;
 gint o_packet_size = -1;
 gboolean o_pause_loop = FALSE;
 
@@ -478,9 +479,7 @@ int main(int argc, char **argv)
 
 	if (o_packet_size == -1) {
 		o_packet_size = 64;
-	} else if (o_packet_size > 64 && o_packet_size < 1500) {
-
-	} else {
+	} else if (o_packet_size < 64) {
 		printf("not supported packet size\n");
 		return -1;
 	}

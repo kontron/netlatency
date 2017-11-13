@@ -37,6 +37,7 @@
 //#include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/ether.h>
+#include <linux/sockios.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -45,14 +46,19 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/mman.h>
+#include <sys/time.h>
+#include <inttypes.h>
+
+#include <linux/errqueue.h>
 
 #include <glib.h>
 #include <glib/gprintf.h>
 
-#include "stats.h"
-#include "data.h"
-#include "timer.h"
 #include "config_control.h"
+#include "data.h"
+#include "stats.h"
+#include "timer.h"
+#include "timestamps.h"
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;
@@ -237,6 +243,7 @@ static void config_thread(void)
 	}
 }
 
+#if 0
 static void timer_handler(int signum)
 {
 	struct timespec ts;
@@ -253,6 +260,7 @@ static void timer_handler(int signum)
 		ts.tv_nsec %1000
 	);
 }
+#endif
 
 void busy_poll(void)
 {
@@ -265,6 +273,7 @@ void busy_poll(void)
 
 }
 
+#if 0
 void run_by_timer(void)
 {
 	timer_t t_id;
@@ -297,6 +306,7 @@ void run_by_timer(void)
 
 	while(1);
 }
+#endif
 
 #if 0
 void * thread_code(void)
@@ -384,7 +394,7 @@ void *thread_func(void *data)
 }
 
 
-
+#if 0
 int run_thread(void)
 {
 	struct sched_param param;
@@ -445,6 +455,8 @@ int run_thread(void)
 out:
 	return ret;
 }
+#endif
+
 
 int main(int argc, char **argv)
 {
@@ -481,6 +493,8 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	configure_tx_timestamp(eth, argv[1]);
+
 	config_thread();
 	memset(tp, 0, sizeof(struct ether_testpacket));
 
@@ -507,13 +521,14 @@ int main(int argc, char **argv)
 	tp->hdr.ether_type = 0x0808;
 
 
+
 	if (o_interval_us) {
 
 		if (o_run_timer) {
-			run_by_timer();
+			//run_by_timer();
 
 		} else if (o_run_thread) {
-			run_thread();
+			//run_thread();
 
 		} else {
 			struct timespec sleep_ts;
@@ -565,6 +580,12 @@ int main(int argc, char **argv)
 				if (o_verbose) {
 					printf("%s", str);
 				}
+
+//				(void)__poll;
+				//__poll(eth->fd);
+
+//				while (!get_tx_timestamp(eth->fd)) {}
+
 
 				/* sync to beginning of millisecond */
 //				nanosleep_until(&sleep_ts, o_interval_us * 1000);

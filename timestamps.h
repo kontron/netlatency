@@ -3,7 +3,7 @@
 
 typedef struct eth_handle eth_t;
 
-int configure_tx_timestamp(eth_t *eth, char* ifname);
+int configure_tx_timestamp(int fd, char* ifname);
 
 int get_tx_timestamp(int fd);
 

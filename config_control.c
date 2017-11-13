@@ -27,6 +27,9 @@
 
 #define UNUSED(x) (void)x
 
+extern gboolean o_pause_loop;
+extern gint o_interval_us;
+
 /*---------------------------------------------------------------------------
  * Handle configuration-control commands
  *-------------------------------------------------------------------------*/
@@ -37,7 +40,17 @@ static void set_config_control (gchar* pCmd)
     int     iValue;
 
     pCmdEntry = g_strsplit_set(pCmd, "=", 2);
-    if (strcmp (pCmdEntry[0], "size") == 0) {
+    if (strcmp (pCmdEntry[0], "interval_usec") == 0) {
+	guint64 interval;
+        interval = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
+	o_interval_us = interval;
+
+    } else if (strcmp (pCmdEntry[0], "state") == 0) {
+	guint64 enable;
+        enable = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
+	o_pause_loop = enable ? FALSE : TRUE;
+
+    } else if (strcmp (pCmdEntry[0], "size") == 0) {
         /* set packet size */
         iValue = atoi(pCmdEntry[1]);
         if (iValue < 64) {
@@ -73,7 +86,7 @@ int open_server_tcp_socket(int port)
     /* set master socket to allow multiple connections ,
      * this is just a good habit, it will work without this
      */
-    opt = 0;
+    opt = 1;
     if( setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
         perror("setsockopt");
         exit(EXIT_FAILURE);

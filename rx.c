@@ -125,14 +125,33 @@ struct stats stats;
 static int client_socket[MAX_CLIENTS];
 static int max_fd;
 
+static int check_sequence_num(unsigned long seq, long *dropped_packets, gboolean *sequence_error)
+{
+	static unsigned long last_seq = 0;
+
+	if (last_seq == 0) {
+		last_seq = seq;
+		*dropped_packets = 0;
+		*sequence_error = 0;
+		return 0;
+	}
+
+	*dropped_packets = seq - last_seq - 1;
+	*sequence_error = seq <= last_seq;
+
+	if (*dropped_packets || *sequence_error)
+		printf("dropped=%ld error=%d\n", *dropped_packets, *sequence_error);
+
+	last_seq = seq;
+	return 0;
+}
+
 static int handle_msg(struct msghdr *msg, int fd_socket)
 {
 	struct ether_testpacket *tp;
-//	struct ethhdr *ethhdr;
 	struct timespec rx_ts;
 	struct timespec diff_ts;
 
-//	ethhdr = (struct ethhdr*)msg->msg_iov->iov_base;
 	tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
 	memset(&rx_ts, 0, sizeof(rx_ts));
@@ -146,6 +165,11 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 
 	/* calc stats wtih stored previous packages */
 	calc_stats(&rx_ts, &stats, tp->interval_us);
+
+
+	long dropped;
+	gboolean seq_error;
+	check_sequence_num(tp->seq, &dropped, &seq_error);
 
 	char str[1024];
 	memset(str, 0, sizeof(str));
@@ -177,7 +201,12 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 
 			json_t *j;
 			char *s;
-			j = json_pack("{sisi}", "sequence", tp->seq, "delay_us", (diff_ts.tv_nsec/1000));
+			j = json_pack("{sisisisb}",
+					"sequence", tp->seq,
+					"delay_us", (diff_ts.tv_nsec/1000),
+					"dropped_packets", dropped, 
+					"sequence_error", seq_error
+			);
 			s = json_dumps(j, JSON_COMPACT);
 			//XXXX: check size 
 			strncpy(str, s, sizeof(str));

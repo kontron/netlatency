@@ -38,9 +38,12 @@
 #include <glib.h>
 #include <glib/gprintf.h>
 
+#include <jansson.h>
+
 #include "stats.h"
 #include "data.h"
 #include "domain_socket.h"
+
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;
@@ -125,11 +128,11 @@ static int max_fd;
 static int handle_msg(struct msghdr *msg, int fd_socket)
 {
 	struct ether_testpacket *tp;
-	struct ethhdr *ethhdr;
+//	struct ethhdr *ethhdr;
 	struct timespec rx_ts;
 	struct timespec diff_ts;
 
-	ethhdr = (struct ethhdr*)msg->msg_iov->iov_base;
+//	ethhdr = (struct ethhdr*)msg->msg_iov->iov_base;
 	tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
 	memset(&rx_ts, 0, sizeof(rx_ts));
@@ -171,6 +174,15 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 				tp->seq,
 				(diff_ts.tv_nsec / 1000)
 			);
+
+			json_t *j;
+			char *s;
+			j = json_pack("{sisi}", "sequence", tp->seq, "delay_us", (diff_ts.tv_nsec/1000));
+			s = json_dumps(j, JSON_COMPACT);
+			//XXXX: check size 
+			strncpy(str, s, sizeof(str));
+			json_decref(j);
+			free(s);
 			break;
 		default:
 			snprintf(str, sizeof(str), "TS(l): %lld.%.06ld;\n",
@@ -182,6 +194,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 	}
 
 	if (o_verbose) {
+#if 0
 		printf("src: %02x:%02x:%02x:%02x:%02x:%02x; ",
 				ethhdr->h_source[0],
 				ethhdr->h_source[1],
@@ -196,9 +209,9 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 				ethhdr->h_dest[3],
 				ethhdr->h_dest[4],
 				ethhdr->h_dest[5]);
-
 		printf("proto: 0x%04x, ", ntohs(ethhdr->h_proto));
-		printf("%s", str);
+#endif
+		printf("%s\n", str);
 	}
 
 	if (fd_socket != -1) {
@@ -261,7 +274,8 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 				}
 			}
 
-			if (write(sd, str, strlen(str)) <= 0) {
+			// write string + '\n' + '\0'
+			if (write(sd, str, strlen(str) + 1) <= 0) {
 				client_socket[i] = 0;
 			}
 		}

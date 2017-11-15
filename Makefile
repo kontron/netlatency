@@ -38,6 +38,7 @@ MY_LDFLAGS := $(LDFLAGS)
 
 MY_CFLAGS += $(call cflags_for_lib,glib-2.0)
 LIBS += $(call ldflags_for_lib,glib-2.0)
+LIBS += $(call ldflags_for_lib,jansson)
 LIBS += -lrt
 LIBS += -lm
 

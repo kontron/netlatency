@@ -579,6 +579,7 @@ int main(int argc, char **argv)
 				);
 
 				tp->interval_us = o_interval_us;
+				tp->packet_size= o_packet_size;
 
 				eth_send(eth, buf, o_packet_size);
 

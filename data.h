@@ -9,6 +9,7 @@ struct ether_testpacket {
 	struct timespec ts;
 	uint32_t seq;
 	uint32_t interval_us;
+	uint32_t packet_size;
 };
 
 #endif

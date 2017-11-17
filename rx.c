@@ -201,11 +201,13 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 
 			json_t *j;
 			char *s;
-			j = json_pack("{sisisisb}",
+			j = json_pack("{sisisisbsisi}",
 					"sequence", tp->seq,
 					"delay_us", (diff_ts.tv_nsec/1000),
 					"dropped_packets", dropped, 
-					"sequence_error", seq_error
+					"sequence_error", seq_error,
+					"interval_us", tp->interval_us,
+					"packet_size", tp->packet_size
 			);
 			s = json_dumps(j, JSON_COMPACT);
 			//XXXX: check size 

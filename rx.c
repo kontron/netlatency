@@ -177,20 +177,6 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 	/* build result message string */
 	{
 		switch (o_capture_ethertype) {
-#if 0
-		case 0x00808:
-			snprintf(str, sizeof(str), "TS(l): %lld.%.06ld; TS(r): %lld.%.06ld; SEQ: %-d; DIFF: %ld; MEAN: %ld; MAX: %ld;\n",
-				(long long)rx_ts.tv_sec,
-				(rx_ts.tv_nsec / 1000),
-				(long long)tp->ts.tv_sec,
-				(tp->ts.tv_nsec / 1000),
-				tp->seq,
-				(stats.diff.tv_nsec / 1000),
-				(stats.mean.tv_nsec / 1000),
-				(stats.max.tv_nsec / 1000)
-			);
-			break;
-#endif
 		case 0x00808:
 			snprintf(str, sizeof(str), "TS(rx): %lld.%.06ld; TS(tx): %lld.%.06ld; SEQ: %-d; DIFF: %ld;\n",
 				(long long)rx_ts.tv_sec, (rx_ts.tv_nsec / 1000),
@@ -225,23 +211,6 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 	}
 
 	if (o_verbose) {
-#if 0
-		printf("src: %02x:%02x:%02x:%02x:%02x:%02x; ",
-				ethhdr->h_source[0],
-				ethhdr->h_source[1],
-				ethhdr->h_source[2],
-				ethhdr->h_source[3],
-				ethhdr->h_source[4],
-				ethhdr->h_source[5]);
-		printf("dst: %02x:%02x:%02x:%02x:%02x:%02x; ",
-				ethhdr->h_dest[0],
-				ethhdr->h_dest[1],
-				ethhdr->h_dest[2],
-				ethhdr->h_dest[3],
-				ethhdr->h_dest[4],
-				ethhdr->h_dest[5]);
-		printf("proto: 0x%04x, ", ntohs(ethhdr->h_proto));
-#endif
 		printf("%s\n", str);
 	}
 

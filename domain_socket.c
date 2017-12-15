@@ -3,7 +3,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdlib.h>
-//#include <sys/types.h>
 #include <sys/stat.h>
 #include <signal.h>
 
@@ -41,14 +40,6 @@ int open_server_socket(char *socket_path)
 		perror("socket error");
 		exit(-1);
 	}
-
-#if 0
-	//set master socket to allow multiple connections , this is just a good habit, it will work without this
-	if( setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
-		perror("setsockopt");
-		exit(EXIT_FAILURE);
-	}
-#endif
 
 	signal(SIGPIPE, SIG_IGN);
 

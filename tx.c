@@ -34,7 +34,6 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <netpacket/packet.h>
-//#include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/ether.h>
 #include <linux/sockios.h>
@@ -64,8 +63,6 @@ static gchar *help_description = NULL;
 static gint o_verbose = 0;
 static gint o_quiet = 0;
 static gint o_version = 0;
-static gint o_run_timer = 0;
-static gint o_run_thread = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
 static gint o_memlock = 1;
@@ -140,10 +137,6 @@ static GOptionEntry entries[] = {
             &o_destination_mac, "Destination MAC address", NULL },
     { "interval",    'i', 0, G_OPTION_ARG_INT,
             &o_interval_us, "Interval in micro seconds", NULL },
-    { "timer",       't', 0, G_OPTION_ARG_NONE,
-            &o_run_timer, "Run timer", NULL },
-    { "thread",      'r', 0, G_OPTION_ARG_NONE,
-            &o_run_thread, "Run in thread", NULL },
     { "prio",        'p', 0, G_OPTION_ARG_INT,
             &o_sched_prio, "Set scheduler priority", NULL },
     { "memlock",     'm', 0, G_OPTION_ARG_INT,
@@ -193,6 +186,7 @@ static void config_thread(void)
     if (o_verbose) {
         printf("config memlock %d\n", o_memlock);
     }
+
     if (o_memlock) {
         if(mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
             printf("mlockall failed: %m\n");
@@ -216,7 +210,6 @@ static void config_thread(void)
 
     sp.sched_priority = o_sched_prio;
     rc = pthread_setschedparam(pthread_self(), policy, &sp);
-    //rc = pthread_setschedparam(pthread_self(), SCHED_RR, &sp);
     if (rc) {
         perror("pthread_setschedparam()");
         exit (1);
@@ -245,25 +238,6 @@ static void config_thread(void)
     }
 }
 
-#if 0
-static void timer_handler(int signum)
-{
-    struct timespec ts;
-
-    (void)signum;
-
-    clock_gettime(CLOCK_REALTIME, &ts);
-
-
-    printf("%lld.%.3ld.%3ld.%3ld\n",
-        (long long)ts.tv_sec,
-        ts.tv_nsec / 1000000,
-        (ts.tv_nsec / 1000)%1000,
-        ts.tv_nsec %1000
-    );
-}
-#endif
-
 void busy_poll(void)
 {
     struct timespec ts;
@@ -274,191 +248,6 @@ void busy_poll(void)
     }
 
 }
-
-#if 0
-void run_by_timer(void)
-{
-    timer_t t_id;
-    struct itimerspec tim_spec = {
-                .it_interval = { .tv_sec = 0, .tv_nsec = 0 },
-                .it_value = { .tv_sec = 1, .tv_nsec = 0 }
-    };
-    tim_spec.it_interval.tv_nsec = o_interval_us * 1000;
-    struct sigaction action;
-    sigset_t set;
-
-    printf("starting timer loop\n");
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGALRM);
-
-    action.sa_flags = 0;
-    action.sa_mask = set;
-    action.sa_handler = &timer_handler;
-
-    sigaction(SIGALRM, &action, NULL);
-
-    if (timer_create(CLOCK_MONOTONIC, NULL, &t_id)) {
-        perror("timer_create()");
-    }
-
-    if (timer_settime(t_id, 0, &tim_spec, NULL)) {
-        perror("timer_settime()");
-    }
-
-    while(1);
-}
-#endif
-
-#if 0
-void * thread_code(void)
-{
-    pthread_make_periodic_np(pthread_self(), gethrtime(), 1000000000);
-
-    while (1) {
-        pthread_wait_np();
-        rtl_printf("Hello World\n");
-    }
-
-    return 0;
-}
-#endif
-
-void *thread_func(void *data)
-{
-    struct timespec sleep_ts;
-    struct timespec ts;
-    /* Do RT specific stuff here */
-    (void)data;
-    clock_gettime(CLOCK_MONOTONIC, &sleep_ts);
-
-    struct stats stats;
-
-    memset(&stats, 0, sizeof(struct stats));
-
-
-    while (1) {
-        clock_gettime(CLOCK_REALTIME, &ts);
-
-        calc_stats(&ts, &stats, o_interval_us);
-
-#if 0
-        printf("NOW   %lld.%.03ld.%03ld",
-            (long long)ts.tv_sec,
-            ts.tv_nsec / 1000000,
-            (ts.tv_nsec / 1000)%1000
-        );
-        printf("  DIFF to prev  %lld.%.03ld.%03ld",
-            (long long)stats.diff.tv_sec,
-            stats.diff.tv_nsec / 1000000,
-            (stats.diff.tv_nsec / 1000)%1000
-        );
-        printf("  MEAN  %lld.%.03ld.%03ld",
-            (long long)stats.mean.tv_sec,
-            stats.mean.tv_nsec / 1000000,
-            (stats.mean.tv_nsec / 1000)%1000
-        );
-        printf("  MAX   %lld.%.03ld.%03ld",
-            (long long)stats.max.tv_sec,
-            stats.max.tv_nsec / 1000000,
-            (stats.max.tv_nsec / 1000)%1000
-        );
-        printf("\n");
-#endif
-        char str[1024];
-
-        memset(str, 0, sizeof(str));
-        snprintf(str, sizeof(str), "SEQ: %-d; TS(r): %lld.%.06ld; TS(r): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
-                tp->seq,
-                (long long)ts.tv_sec,
-                (ts.tv_nsec / 1000),
-
-                (long long)tp->ts.tv_sec,
-                (tp->ts.tv_nsec / 1000),
-
-                (long long)stats.diff.tv_sec,
-                (stats.diff.tv_nsec / 1000),
-
-                (long long)stats.mean.tv_sec,
-                (stats.mean.tv_nsec / 1000),
-
-                (long long)stats.max.tv_sec,
-                (stats.max.tv_nsec / 1000)
-        );
-
-        printf("%s", str);
-
-
-        nanosleep_until(&sleep_ts, o_interval_us * 1000);
-    }
-
-    return NULL;
-}
-
-
-#if 0
-int run_thread(void)
-{
-    struct sched_param param;
-    pthread_attr_t attr;
-    pthread_t thread;
-    int ret;
-
-    /* Lock memory */
-    if(mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
-        printf("mlockall failed: %m\n");
-        exit(-2);
-    }
-
-    /* Initialize pthread attributes (default values) */
-    ret = pthread_attr_init(&attr);
-    if (ret) {
-        printf("init pthread attributes failed\n");
-        goto out;
-    }
-
-    /* Set a specific stack size  */
-    ret = pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN);
-    if (ret) {
-        printf("pthread setstacksize failed\n");
-        goto out;
-    }
-
-    /* Set scheduler policy and priority of pthread */
-    ret = pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
-    if (ret) {
-        printf("pthread setschedpolicy failed\n");
-        goto out;
-    }
-    param.sched_priority = 80;
-    ret = pthread_attr_setschedparam(&attr, &param);
-    if (ret) {
-        printf("pthread setschedparam failed\n");
-        goto out;
-    }
-    /* Use scheduling parameters of attr */
-    ret = pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-    if (ret) {
-        printf("pthread setinheritsched failed\n");
-        goto out;
-    }
-
-    /* Create a pthread with specified attributes */
-    ret = pthread_create(&thread, &attr, thread_func, NULL);
-    if (ret) {
-        printf("create pthread failed\n");
-        goto out;
-    }
-
-    /* Join the thread and wait until it is done */
-    ret = pthread_join(thread, NULL);
-    if (ret)
-        printf("join pthread failed: %m\n");
-out:
-    return ret;
-}
-#endif
-
 
 int main(int argc, char **argv)
 {
@@ -493,8 +282,6 @@ int main(int argc, char **argv)
         return -1;
     }
 
-//  configure_tx_timestamp(eth->fd, argv[1]);
-
     config_thread();
     memset(tp, 0, sizeof(struct ether_testpacket));
 
@@ -511,6 +298,7 @@ int main(int argc, char **argv)
 
     /* destination MAC */
     if (ether_aton_r(o_destination_mac, (struct ether_addr*)&tp->hdr.ether_dhost) == NULL) {
+        printf("ether_aton_r: failed\n");
         return -1;
     }
 
@@ -520,84 +308,64 @@ int main(int argc, char **argv)
     /* ethertype */
     tp->hdr.ether_type = 0x0808;
 
-
-
     if (o_interval_us) {
+        struct timespec sleep_ts;
+        struct stats stats;
 
-        if (o_run_timer) {
-            //run_by_timer();
+        memset(&stats, 0, sizeof(struct stats));
 
-        } else if (o_run_thread) {
-            //run_thread();
+        clock_gettime(CLOCK_MONOTONIC, &sleep_ts);
 
-        } else {
-            struct timespec sleep_ts;
-            struct stats stats;
+        /* wait for millisecond == 0 */
+        busy_poll();
 
-            memset(&stats, 0, sizeof(struct stats));
+        while (1) {
 
-            clock_gettime(CLOCK_MONOTONIC, &sleep_ts);
-
-            /* wait for millisecond == 0 */
-            busy_poll();
-
-            while (1) {
-
-                if (o_pause_loop) {
-                    sleep(1);
-                    continue;
-                }
-
-                /* sync to desired millisecond start */
-                wait_for_next_timeslice(o_interval_us / 1000);
-
-                clock_gettime(CLOCK_REALTIME, &ts);
-                calc_stats(&ts, &stats, o_interval_us);
-
-                char str[1024];
-
-                /* update new timestamp in packet */
-                memcpy(&tp->ts, &ts, sizeof(struct timespec));
-
-                memset(str, 0, sizeof(str));
-                snprintf(str, sizeof(str), "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
-                        tp->seq,
-                        (long long)ts.tv_sec,
-                        (ts.tv_nsec / 1000),
-
-                        0ULL,
-                        0UL,
-
-                        (long long)stats.diff.tv_sec,
-                        (stats.diff.tv_nsec / 1000),
-
-                        (long long)stats.mean.tv_sec,
-                        (stats.mean.tv_nsec / 1000),
-
-                        (long long)stats.max.tv_sec,
-                        (stats.max.tv_nsec / 1000)
-                );
-
-                tp->interval_us = o_interval_us;
-                tp->packet_size= o_packet_size;
-
-                eth_send(eth, buf, o_packet_size);
-
-                if (o_verbose) {
-                    printf("%s", str);
-                }
-
-//              (void)__poll;
-                //__poll(eth->fd);
-
-//              while (!get_tx_timestamp(eth->fd)) {}
-
-
-                /* sync to beginning of millisecond */
-//              nanosleep_until(&sleep_ts, o_interval_us * 1000);
-                // increase sequence number
-                tp->seq++;
+            if (o_pause_loop) {
+                sleep(1);
+                continue;
             }
+
+            /* sync to desired millisecond start */
+            wait_for_next_timeslice(o_interval_us / 1000);
+
+            clock_gettime(CLOCK_REALTIME, &ts);
+            calc_stats(&ts, &stats, o_interval_us);
+
+            char str[1024];
+
+            /* update new timestamp in packet */
+            memcpy(&tp->ts, &ts, sizeof(struct timespec));
+
+            memset(str, 0, sizeof(str));
+            snprintf(str, sizeof(str), "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+                    tp->seq,
+                    (long long)ts.tv_sec,
+                    (ts.tv_nsec / 1000),
+
+                    0ULL,
+                    0UL,
+
+                    (long long)stats.diff.tv_sec,
+                    (stats.diff.tv_nsec / 1000),
+
+                    (long long)stats.mean.tv_sec,
+                    (stats.mean.tv_nsec / 1000),
+
+                    (long long)stats.max.tv_sec,
+                    (stats.max.tv_nsec / 1000)
+            );
+
+            tp->interval_us = o_interval_us;
+            tp->packet_size= o_packet_size;
+
+            eth_send(eth, buf, o_packet_size);
+
+            if (o_verbose) {
+                printf("%s", str);
+            }
+
+            tp->seq++;
         }
 
     } else {

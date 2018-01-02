@@ -25,8 +25,6 @@
 
 #define DEF_SOCKET_PORT  6666
 
-#define UNUSED(x) (void)x
-
 extern gboolean o_pause_loop;
 extern gint o_interval_us;
 
@@ -41,14 +39,14 @@ static void set_config_control (gchar* pCmd)
 
     pCmdEntry = g_strsplit_set(pCmd, "=", 2);
     if (strcmp (pCmdEntry[0], "interval_usec") == 0) {
-	guint64 interval;
+    guint64 interval;
         interval = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
-	o_interval_us = interval;
+    o_interval_us = interval;
 
     } else if (strcmp (pCmdEntry[0], "state") == 0) {
-	guint64 enable;
+    guint64 enable;
         enable = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
-	o_pause_loop = enable ? FALSE : TRUE;
+    o_pause_loop = enable ? FALSE : TRUE;
 
     } else if (strcmp (pCmdEntry[0], "size") == 0) {
         /* set packet size */
@@ -87,7 +85,7 @@ int open_server_tcp_socket(int port)
      * this is just a good habit, it will work without this
      */
     opt = 1;
-    if( setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
         perror("setsockopt");
         exit(EXIT_FAILURE);
     }
@@ -117,7 +115,7 @@ static void *listen_config_control (void* arg)
     int max_fd = 0;
     int fd_socket = -1;
 
-    UNUSED(arg);
+    (void) arg;
 
     memset(client_socket, 0, sizeof(client_socket));
 

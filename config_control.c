@@ -23,9 +23,7 @@
 
 #include "config_control.h"
 
-#define DEF_SOCKET_PORT  6666
-
-#define UNUSED(x) (void)x
+#define DEFAULT_SOCKET_PORT  6666
 
 extern gboolean o_pause_loop;
 extern gint o_interval_us;
@@ -34,21 +32,21 @@ extern gint o_interval_us;
  * Handle configuration-control commands
  *-------------------------------------------------------------------------*/
 
-static void set_config_control (gchar* pCmd)
+static void set_config_control(gchar *pCmd)
 {
     gchar** pCmdEntry;
     int     iValue;
 
     pCmdEntry = g_strsplit_set(pCmd, "=", 2);
     if (strcmp (pCmdEntry[0], "interval_usec") == 0) {
-	guint64 interval;
+        guint64 interval;
         interval = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
-	o_interval_us = interval;
+        o_interval_us = interval;
 
     } else if (strcmp (pCmdEntry[0], "state") == 0) {
-	guint64 enable;
+        guint64 enable;
         enable = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
-	o_pause_loop = enable ? FALSE : TRUE;
+        o_pause_loop = enable ? FALSE : TRUE;
 
     } else if (strcmp (pCmdEntry[0], "size") == 0) {
         /* set packet size */
@@ -87,7 +85,7 @@ int open_server_tcp_socket(int port)
      * this is just a good habit, it will work without this
      */
     opt = 1;
-    if( setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
         perror("setsockopt");
         exit(EXIT_FAILURE);
     }
@@ -111,17 +109,17 @@ int open_server_tcp_socket(int port)
     return fd;
 }
 
-static void *listen_config_control (void* arg)
+static void *listen_config_control(void *arg)
 {
     int client_socket[MAX_CLIENTS];
     int max_fd = 0;
     int fd_socket = -1;
 
-    UNUSED(arg);
+    (void) arg;
 
     memset(client_socket, 0, sizeof(client_socket));
 
-    fd_socket = open_server_tcp_socket(DEF_SOCKET_PORT);
+    fd_socket = open_server_tcp_socket(DEFAULT_SOCKET_PORT);
 
     while (1) {
         int i;
@@ -145,7 +143,6 @@ static void *listen_config_control (void* arg)
             }
         }
 
-        //struct timeval waitd = {0, 0};
         activity = select(max_fd + 1 , &readfds , NULL , NULL , NULL);
         if ((activity < 0) && (errno != EINTR)) {
             perror("select error");
@@ -193,8 +190,7 @@ static void *listen_config_control (void* arg)
 /*---------------------------------------------------------------------------
  * Start configuration-control task
  *-------------------------------------------------------------------------*/
-
-void start_config_control (void)
+void start_config_control(void)
 {
     static pthread_t tid = 0;
     int rc;

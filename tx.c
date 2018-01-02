@@ -66,7 +66,13 @@ static gint o_version = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
 static gint o_memlock = 1;
+static gint o_config_control_port = 0;
 
+/*
+    TODO:
+    the configuration can be set by conifg thread .. use threadsafe access
+    https://developer.gnome.org/glib/2.54/glib-Atomic-Operations.html
+*/
 gint o_interval_us = 0;
 gint o_packet_size = -1;
 gboolean o_pause_loop = FALSE;
@@ -274,7 +280,9 @@ int main(int argc, char **argv)
     }
 
     /* start configuration control task */
-    start_config_control();
+    if (o_config_control_port) {
+        start_config_control();
+    }
 
     eth = eth_open(argv[1]);
     if (eth == NULL) {

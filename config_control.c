@@ -176,7 +176,7 @@ static void *listen_config_control(void *arg)
                 char msg_str[256];
 
                 memset(msg_str, 0, sizeof(msg_str));
-                if (read(sd,msg_str, sizeof(msg_str)) == 0) {
+                if (read(sd, msg_str, sizeof(msg_str)) == 0) {
                     close(sd);
                     client_socket[i] = 0;
                     continue;

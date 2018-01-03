@@ -22,6 +22,8 @@
 
 #include <linux/errqueue.h>
 
+
+#if 0
 int configure_tx_timestamp(int fd, char* ifname)
 {
 	int opt = SOF_TIMESTAMPING_TX_SCHED |
@@ -242,3 +244,5 @@ int get_tx_timestamp(int fd)
 	free(data);
 	return ret;
 }
+
+#endif

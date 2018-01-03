@@ -57,7 +57,7 @@
 #include "data.h"
 #include "stats.h"
 #include "timer.h"
-#include "timestamps.h"
+//#include "timestamps.h"
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;

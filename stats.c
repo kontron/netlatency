@@ -95,7 +95,7 @@ void get_diff_to_index(struct stamps *sa, struct timespec *ts,
 void check_for_max(struct timespec *val, struct stats *stats)
 {
 
-	int m = abs(val->tv_nsec);
+	int m = labs(val->tv_nsec);
 	if (m > stats->max.tv_nsec) {
 		stats->max.tv_nsec = m;
 		stats->max.tv_sec = val->tv_sec;

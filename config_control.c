@@ -85,7 +85,8 @@ int open_server_tcp_socket(int port)
      * this is just a good habit, it will work without this
      */
     opt = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 ) {
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+            (char *)&opt, sizeof(opt)) < 0 ) {
         perror("setsockopt");
         exit(EXIT_FAILURE);
     }
@@ -94,7 +95,6 @@ int open_server_tcp_socket(int port)
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
-
 
     if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         perror("bind error");
@@ -143,7 +143,7 @@ static void *listen_config_control(void *arg)
             }
         }
 
-        activity = select(max_fd + 1 , &readfds , NULL , NULL , NULL);
+        activity = select(max_fd + 1, &readfds, NULL, NULL, NULL);
         if ((activity < 0) && (errno != EINTR)) {
             perror("select error");
         }
@@ -172,16 +172,16 @@ static void *listen_config_control(void *arg)
             if (sd == 0) {
                 continue;
             }
-            if (FD_ISSET( sd , &readfds)) {
+            if (FD_ISSET(sd, &readfds)) {
                 char msg_str[256];
 
                 memset(msg_str, 0, sizeof(msg_str));
-                if (read(sd ,msg_str, sizeof(msg_str)) == 0) {
+                if (read(sd,msg_str, sizeof(msg_str)) == 0) {
                     close(sd);
                     client_socket[i] = 0;
                     continue;
                 }
-                set_config_control (msg_str);
+                set_config_control(msg_str);
             }
         }
     }

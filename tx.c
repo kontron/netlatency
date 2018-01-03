@@ -193,7 +193,7 @@ static void config_thread(void)
     }
 
     if (o_memlock) {
-        if(mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
+        if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
             printf("mlockall failed: %m\n");
             exit(-2);
         }
@@ -259,7 +259,9 @@ void print_packet_info(struct timespec *ts, struct stats *stats)
     char str[1024];
 
     memset(str, 0, sizeof(str));
-    snprintf(str, sizeof(str), "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+    snprintf(str, sizeof(str),
+            "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld;"
+            "DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
             tp->seq,
             (long long)ts->tv_sec,
             (ts->tv_nsec / 1000),
@@ -326,7 +328,8 @@ int main(int argc, char **argv)
 
 
     /* destination MAC */
-    if (ether_aton_r(o_destination_mac, (struct ether_addr*)&tp->hdr.ether_dhost) == NULL) {
+    if (ether_aton_r(o_destination_mac,
+            (struct ether_addr*)&tp->hdr.ether_dhost) == NULL) {
         printf("ether_aton_r: failed\n");
         return -1;
     }

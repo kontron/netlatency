@@ -77,16 +77,16 @@ void get_diff_to_index(struct stamps *sa, struct timespec *ts,
 	(void)index_offset;
 
 	if (sa->count > 2) {
-		int l = -1;
+		int offset = -1;
 
 		if (sa->index == 0) {
-			l = TIME_ARRAY_SIZE - 1 - 1;
+			offset = TIME_ARRAY_SIZE - 1 - 1;
 		} else if (sa->index == 1) {
-			l = TIME_ARRAY_SIZE - 1;
+			offset = TIME_ARRAY_SIZE - 1;
 		} else {
-			l = sa->index - 1 - 1;
+			offset = sa->index - 1 - 1;
 		}
-		timespec_diff(&sa->tsa[l], ts, ts_diff);
+		timespec_diff(&sa->tsa[offset], ts, ts_diff);
 	} else {
 		memset(ts_diff, 0, sizeof(struct timespec));
 	}

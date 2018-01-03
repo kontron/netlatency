@@ -25,7 +25,8 @@ void nanosleep_until(struct timespec *ts, int delay)
 #define TIMESLICE_INTERVAL_MS 10000000
 #define TIME_BEFORE_NS 300000
 
-int get_timeval_to_next_slice(struct timespec *now, struct timespec *next, int interval_ms)
+int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
+        int interval_ms)
 {
 	gint64 interval_ns = interval_ms * 1000000;
 	if ((now->tv_nsec + interval_ns) > 1000000000) {
@@ -125,9 +126,6 @@ void wait_for_next_timeslice(int interval_ms)
 				perror("clock_gettime");
 			}
 			loopcount ++;
-#if 1
-if (loopcount > 1000000) printf("HERE\n");
-#endif
 		}
 	}
 

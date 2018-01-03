@@ -133,8 +133,9 @@ static int check_sequence_num(unsigned long seq, long *dropped_packets,
     *dropped_packets = seq - last_seq - 1;
     *sequence_error = seq <= last_seq;
 
-    if (*dropped_packets || *sequence_error)
+    if (*dropped_packets || *sequence_error) {
         printf("dropped=%ld error=%d\n", *dropped_packets, *sequence_error);
+    }
 
     last_seq = seq;
     return 0;
@@ -234,7 +235,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         }
 
         struct timeval waitd = {0, 0};
-        activity = select(max_fd + 1 , &readfds , NULL , NULL , &waitd);
+        activity = select(max_fd + 1, &readfds, NULL, NULL, &waitd);
         if ((activity < 0) && (errno != EINTR)) {
             perror("select error");
         }
@@ -310,18 +311,9 @@ int open_capture_interface(gchar *ifname)
         return -1;
     }
 
-    if (0) {
-        /* Set interface to promiscuous mode - do we need to do this every time? */
-        /* no .. check if promiscuous mode was set before */
-        strncpy(ifr.ifr_name, ifname, IFNAMSIZ-1);
-        ioctl(fd, SIOCGIFFLAGS, &ifr);
-        ifr.ifr_flags |= IFF_PROMISC;
-        ioctl(fd, SIOCSIFFLAGS, &ifr);
-    }
-
+    /* Allow the socket to be reused */
     {
         opt = 0;
-        /* Allow the socket to be reused */
         rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
         if (rc == -1) {
             perror("setsockopt() ... enable");

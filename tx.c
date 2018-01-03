@@ -47,7 +47,6 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <inttypes.h>
-
 #include <linux/errqueue.h>
 
 #include <glib.h>
@@ -255,6 +254,28 @@ void busy_poll(void)
 
 }
 
+void print_packet_info(struct timespec *ts, struct stats *stats)
+{
+    char str[1024];
+
+    memset(str, 0, sizeof(str));
+    snprintf(str, sizeof(str), "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
+            tp->seq,
+            (long long)ts->tv_sec,
+            (ts->tv_nsec / 1000),
+            0ULL,
+            0UL,
+            (long long)stats->diff.tv_sec,
+            (stats->diff.tv_nsec / 1000),
+            (long long)stats->mean.tv_sec,
+            (stats->mean.tv_nsec / 1000),
+            (long long)stats->max.tv_sec,
+            (stats->max.tv_nsec / 1000)
+    );
+
+    printf("%s", str);
+}
+
 int main(int argc, char **argv)
 {
     int rv = 0;
@@ -340,29 +361,8 @@ int main(int argc, char **argv)
             clock_gettime(CLOCK_REALTIME, &ts);
             calc_stats(&ts, &stats, o_interval_us);
 
-            char str[1024];
-
             /* update new timestamp in packet */
             memcpy(&tp->ts, &ts, sizeof(struct timespec));
-
-            memset(str, 0, sizeof(str));
-            snprintf(str, sizeof(str), "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld; DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
-                    tp->seq,
-                    (long long)ts.tv_sec,
-                    (ts.tv_nsec / 1000),
-
-                    0ULL,
-                    0UL,
-
-                    (long long)stats.diff.tv_sec,
-                    (stats.diff.tv_nsec / 1000),
-
-                    (long long)stats.mean.tv_sec,
-                    (stats.mean.tv_nsec / 1000),
-
-                    (long long)stats.max.tv_sec,
-                    (stats.max.tv_nsec / 1000)
-            );
 
             tp->interval_us = o_interval_us;
             tp->packet_size= o_packet_size;
@@ -370,7 +370,7 @@ int main(int argc, char **argv)
             eth_send(eth, buf, o_packet_size);
 
             if (o_verbose) {
-                printf("%s", str);
+				print_packet_info(&ts, &stats);
             }
 
             tp->seq++;

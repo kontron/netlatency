@@ -13,7 +13,6 @@
 void nanosleep_until(struct timespec *ts, int delay)
 {
 	ts->tv_nsec += delay;
-	//printf("delay=%d\n", delay);
 	/* check for next second */
 	if (ts->tv_nsec >= 1000000000) {
 		ts->tv_nsec -= 1000000000;
@@ -33,13 +32,22 @@ int get_timeval_to_next_slice(struct timespec *now, struct timespec *next, int i
 		//printf("jump to next second");
 		next->tv_sec = now->tv_sec + 1;
 		next->tv_nsec = 0;
-
 	} else {
 		next->tv_sec = now->tv_sec;
 		next->tv_nsec =
 			((now->tv_nsec / interval_ns) + 1) * interval_ns;
 	}
 
+	return 0;
+}
+
+static inline int a_less_b(const struct timespec *a, const struct timespec *b)
+{
+	if (a->tv_sec == b->tv_sec) {
+		return a->tv_nsec < b->tv_nsec;
+	} else {
+		return a->tv_sec < b->tv_sec;
+	}
 	return 0;
 }
 
@@ -104,18 +112,22 @@ void wait_for_next_timeslice(int interval_ms)
 	}
 
 	int loopcount = 0;
+
+	/* do busy polling until target time */
 	{
 		struct timespec now;
 		if (clock_gettime(CLOCK_REALTIME, &now)) {
 			perror("clock_gettime");
 		}
-		while((now.tv_nsec < ts_target.tv_nsec)
-				|| (now.tv_sec != ts_target.tv_sec)) {
 
+		while (a_less_b(&now, &ts_target)) {
 			if (clock_gettime(CLOCK_REALTIME, &now)) {
 				perror("clock_gettime");
 			}
 			loopcount ++;
+#if 1
+if (loopcount > 1000000) printf("HERE\n");
+#endif
 		}
 	}
 
@@ -123,27 +135,6 @@ void wait_for_next_timeslice(int interval_ms)
 	if (clock_gettime(CLOCK_REALTIME, &ts_end)) {
 		perror("clock_gettime");
 	}
-
-#if 0
-	printf("start: %lld.%.06ld  target: %lld.%.06ld   timer: %lld.%.06ld  before: %lld.%.06ld  loop=%d  end: %lld.%.06ld\n",
-		(long long)ts_start.tv_sec,
-		(ts_start.tv_nsec / 1000),
-
-		(long long)ts_target.tv_sec,
-		(ts_target.tv_nsec / 1000),
-
-		(long long)new_value.it_value.tv_sec,
-		(new_value.it_value.tv_nsec / 1000),
-
-		(long long)ts_before_wait.tv_sec,
-		(ts_before_wait.tv_nsec / 1000),
-
-		loopcount,
-
-		(long long)ts_end.tv_sec,
-		(ts_end.tv_nsec / 1000)
-	);
-#endif
 
 	close(timer_fd);
 }

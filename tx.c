@@ -282,7 +282,7 @@ int main(int argc, char **argv)
 
     eth_t *eth;
     struct ifreq ifopts;
-    size_t idx = 0;
+//    size_t idx = 0;
 
     struct timespec ts;
 
@@ -370,7 +370,7 @@ int main(int argc, char **argv)
             eth_send(eth, buf, o_packet_size);
 
             if (o_verbose) {
-				print_packet_info(&ts, &stats);
+                print_packet_info(&ts, &stats);
             }
 
             tp->seq++;
@@ -378,6 +378,9 @@ int main(int argc, char **argv)
 
     } else {
         clock_gettime(CLOCK_REALTIME, &ts);
+        memcpy(&tp->ts, &ts, sizeof(struct timespec));
+
+        eth_send(eth, buf, o_packet_size);
 
         printf("%lld.%.3ld.%3ld.%3ld\n",
             (long long)ts.tv_sec,
@@ -385,10 +388,6 @@ int main(int argc, char **argv)
             (ts.tv_nsec / 1000)%1000,
             ts.tv_nsec %1000
         );
-        memcpy(buf+idx, &ts, sizeof(struct timespec));
-        idx += sizeof(struct timespec);
-
-        eth_send(eth, buf, o_packet_size);
     }
 
     return rv;

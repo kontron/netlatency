@@ -31,23 +31,22 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <netpacket/packet.h>
-#include <netinet/in.h>
-#include <netinet/ether.h>
-#include <linux/sockios.h>
-
 #include <errno.h>
+#include <inttypes.h>
+#include <linux/errqueue.h>
+#include <linux/sockios.h>
+#include <net/if.h>
+#include <netinet/ether.h>
+#include <netinet/in.h>
+#include <netpacket/packet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <time.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/time.h>
-#include <inttypes.h>
-#include <linux/errqueue.h>
+#include <time.h>
+#include <unistd.h>
 
 #include <glib.h>
 #include <glib/gprintf.h>

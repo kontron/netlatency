@@ -14,26 +14,24 @@
 ** GNU General Public License for more details.
 */
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <net/ethernet.h>
 #include <arpa/inet.h>
-#include <linux/if_packet.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/un.h>
+#include <errno.h>
 #include <fcntl.h>
-#include <sys/socket.h>
-
+#include <linux/if_packet.h>
 #include <linux/net_tstamp.h>
 #include <linux/sockios.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 #include <glib.h>
 #include <glib/gprintf.h>
@@ -152,13 +150,10 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     memset(&rx_ts, 0, sizeof(rx_ts));
     get_hw_timestamp(msg, &rx_ts);
 
-    memset(&rx_ts, 0, sizeof(rx_ts));
-    get_hw_timestamp(msg, &rx_ts);
-
     /* calc diff between timestamp in testpacket tp and received packet rx_ts */
     timespec_diff(&tp->ts, &rx_ts, &diff_ts);
 
-    /* calc stats wtih stored previous packages */
+    /* calc stats with stored previous packages */
     calc_stats(&rx_ts, &stats, tp->interval_us);
 
 
@@ -172,7 +167,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     /* build result message string */
     {
         switch (o_capture_ethertype) {
-        case 0x00808:
+        case 0x0808:
             snprintf(str, sizeof(str),
                 "TS(rx): %lld.%.06ld; TS(tx): %lld.%.06ld;"
                 "SEQ: %-d; DIFF: %ld;\n",

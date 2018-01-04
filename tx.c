@@ -33,7 +33,6 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <linux/errqueue.h>
 #include <linux/sockios.h>
 #include <net/if.h>
 #include <netinet/ether.h>
@@ -48,6 +47,8 @@
 #include <time.h>
 #include <unistd.h>
 
+//#include <linux/errqueue.h>
+
 #include <glib.h>
 #include <glib/gprintf.h>
 
@@ -55,7 +56,7 @@
 #include "data.h"
 #include "stats.h"
 #include "timer.h"
-//#include "timestamps.h"
+
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;

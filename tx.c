@@ -72,7 +72,7 @@ static gint o_config_control_port = 0;
     the configuration can be set by conifg thread .. use threadsafe access
     https://developer.gnome.org/glib/2.54/glib-Atomic-Operations.html
 */
-gint o_interval_us = 0;
+gint o_interval_ms = 0;
 gint o_packet_size = -1;
 gboolean o_pause_loop = FALSE;
 
@@ -141,7 +141,7 @@ static GOptionEntry entries[] = {
     { "destination", 'd', 0, G_OPTION_ARG_STRING,
             &o_destination_mac, "Destination MAC address", NULL },
     { "interval",    'i', 0, G_OPTION_ARG_INT,
-            &o_interval_us, "Interval in micro seconds", NULL },
+            &o_interval_ms, "Interval in milli seconds", NULL },
     { "prio",        'p', 0, G_OPTION_ARG_INT,
             &o_sched_prio, "Set scheduler priority", NULL },
     { "memlock",     'm', 0, G_OPTION_ARG_INT,
@@ -260,7 +260,7 @@ void print_packet_info(struct timespec *ts, struct stats *stats)
 
     memset(str, 0, sizeof(str));
     snprintf(str, sizeof(str),
-            "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld;"
+            "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld; "
             "DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
             tp->seq,
             (long long)ts->tv_sec,
@@ -340,7 +340,7 @@ int main(int argc, char **argv)
     /* ethertype */
     tp->hdr.ether_type = 0x0808;
 
-    if (o_interval_us) {
+    if (o_interval_ms) {
         struct timespec sleep_ts;
         struct stats stats;
 
@@ -359,15 +359,15 @@ int main(int argc, char **argv)
             }
 
             /* sync to desired millisecond start */
-            wait_for_next_timeslice(o_interval_us / 1000);
+            wait_for_next_timeslice(o_interval_ms);
 
             clock_gettime(CLOCK_REALTIME, &ts);
-            calc_stats(&ts, &stats, o_interval_us);
+            calc_stats(&ts, &stats, o_interval_ms * 1000);
 
             /* update new timestamp in packet */
             memcpy(&tp->ts, &ts, sizeof(struct timespec));
 
-            tp->interval_us = o_interval_us;
+            tp->interval_us = o_interval_ms * 1000;
             tp->packet_size= o_packet_size;
 
             eth_send(eth, buf, o_packet_size);

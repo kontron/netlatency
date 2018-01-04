@@ -110,8 +110,6 @@ static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
     return n;
 }
 
-struct stats stats;
-
 #define MAX_CLIENTS 2
 static int client_socket[MAX_CLIENTS];
 static int max_fd;
@@ -144,6 +142,9 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     struct ether_testpacket *tp;
     struct timespec rx_ts;
     struct timespec diff_ts;
+    uint32_t abs_ns;
+    long dropped;
+    gboolean seq_error;
 
     tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
@@ -153,39 +154,29 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     /* calc diff between timestamp in testpacket tp and received packet rx_ts */
     timespec_diff(&tp->ts, &rx_ts, &diff_ts);
 
-    /* calc stats with stored previous packages */
-    calc_stats(&rx_ts, &stats, tp->interval_us);
+    /* calc absolut to interval begin */
+    abs_ns = rx_ts.tv_nsec % (tp->interval_us * 1000);
 
-
-    long dropped;
-    gboolean seq_error;
     check_sequence_num(tp->seq, &dropped, &seq_error);
 
     char str[1024];
     memset(str, 0, sizeof(str));
+    json_t *j;
+    char *s;
 
     /* build result message string */
     {
         switch (o_capture_ethertype) {
-        case 0x0808:
-            snprintf(str, sizeof(str),
-                "TS(rx): %lld.%.06ld; TS(tx): %lld.%.06ld;"
-                "SEQ: %-d; DIFF: %ld;\n",
-                (long long)rx_ts.tv_sec, (rx_ts.tv_nsec / 1000),
-                (long long)tp->ts.tv_sec, (tp->ts.tv_nsec / 1000),
-                tp->seq,
-                (diff_ts.tv_nsec / 1000)
-            );
-
-            json_t *j;
-            char *s;
-            j = json_pack("{sisisisbsisi}",
+		case 0x0808:
+            j = json_pack("{sisisisisisisisb}",
                     "sequence", tp->seq,
                     "delay_us", (diff_ts.tv_nsec/1000),
-                    "dropped_packets", dropped,
-                    "sequence_error", seq_error,
+                    "delay_ns", (diff_ts.tv_nsec),
+                    "abs_ns", abs_ns,
                     "interval_us", tp->interval_us,
-                    "packet_size", tp->packet_size
+                    "packet_size", tp->packet_size,
+                    "sequence_error", seq_error,
+                    "dropped_packets", dropped
             );
             s = json_dumps(j, JSON_COMPACT);
             //XXXX: check size
@@ -500,7 +491,6 @@ int main(int argc, char **argv)
         fd_socket = open_server_socket(socket_path);
     }
 
-    memset(&stats, 0, sizeof(struct stats));
     while (1) {
         struct msghdr msg;
         struct iovec iov;

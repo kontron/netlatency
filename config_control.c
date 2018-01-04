@@ -26,7 +26,7 @@
 #define DEFAULT_SOCKET_PORT  6666
 
 extern gboolean o_pause_loop;
-extern gint o_interval_us;
+extern gint o_interval_ms;
 
 /*---------------------------------------------------------------------------
  * Handle configuration-control commands
@@ -38,10 +38,10 @@ static void set_config_control(gchar *pCmd)
     int     iValue;
 
     pCmdEntry = g_strsplit_set(pCmd, "=", 2);
-    if (strcmp (pCmdEntry[0], "interval_usec") == 0) {
+    if (strcmp (pCmdEntry[0], "interval_ms") == 0) {
         guint64 interval;
         interval = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
-        o_interval_us = interval;
+        o_interval_ms = interval;
 
     } else if (strcmp (pCmdEntry[0], "state") == 0) {
         guint64 enable;

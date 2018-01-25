@@ -63,7 +63,7 @@ static gint o_verbose = 0;
 static gint o_version = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
-static int o_queue_prio = 7;
+static int o_queue_prio = -1;
 static gint o_memlock = 1;
 static gint o_config_control_port = 0;
 
@@ -313,8 +313,9 @@ int main(int argc, char **argv)
     }
 
     /* Set skb priority */
-    int optval = o_queue_prio;
-    setsockopt(eth->fd, SOL_SOCKET, SO_PRIORITY, &optval, sizeof(int));
+    if (o_queue_prio > 0) {
+        setsockopt(eth->fd, SOL_SOCKET, SO_PRIORITY, &o_queue_prio, sizeof(o_queue_prio));
+    }
 
 
     config_thread();

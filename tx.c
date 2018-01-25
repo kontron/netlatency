@@ -60,7 +60,6 @@
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;
-static gint o_quiet = 0;
 static gint o_version = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
@@ -153,8 +152,6 @@ static GOptionEntry entries[] = {
             &o_packet_size, "Set the packet size", NULL },
     { "verbose",     'v', 0, G_OPTION_ARG_NONE,
             &o_verbose, "Be verbose", NULL },
-    { "quiet",       'q', 0, G_OPTION_ARG_NONE,
-            &o_quiet, "Suppress error messages", NULL },
     { "version",     'V', 0, G_OPTION_ARG_NONE,
             &o_version, "Show version inforamtion and exit", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }

@@ -309,13 +309,13 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         printf("%s\n", result_str);
     }
 
-    if (fd_socket != -1) {
+    if (fd_socket != -1 && result_str) {
         rc = handle_status_socket(fd_socket, result_str);
     }
 
-	if (result_str != NULL) {
-	    free(result_str);
-	}
+    if (result_str != NULL) {
+        free(result_str);
+    }
 
     return rc;
 }

@@ -479,7 +479,7 @@ gint parse_command_line_options(gint *argc, char **argv)
 
     g_option_context_add_main_entries(context, entries, NULL);
     g_option_context_set_description(context,
-        "This tool receives and analyzes incoming ethernet packets.\n"
+        "This tool receives and analyzes incoming ethernet test packets.\n"
     );
 
     if (!g_option_context_parse(context, argc, &argv, &error)) {

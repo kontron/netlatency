@@ -435,7 +435,7 @@ static gboolean parse_rx_filter_cb(const gchar *key, const gchar *value,
     (void)user_data;
     (void)error;
 
-    for (i = 0; filter_map[i].name != NULL; i++){
+    for (i = 0; filter_map[i].name != NULL; i++) {
         if (!strncmp(filter_map[i].name, value, strlen(value))) {
             o_rx_filter = filter_map[i].filter;
             return TRUE;

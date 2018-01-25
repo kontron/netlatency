@@ -162,7 +162,7 @@ gint parse_command_line_options(gint *argc, char **argv)
     GError *error = NULL;
     GOptionContext *context;
 
-    context = g_option_context_new("DEVICE - receive timestamped packets");
+    context = g_option_context_new("DEVICE - transmit timestamped test packets");
 
     g_option_context_add_main_entries(context, entries, NULL);
     g_option_context_set_description(context,

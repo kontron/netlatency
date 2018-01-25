@@ -145,6 +145,9 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     uint32_t abs_ns;
     long dropped;
     gboolean seq_error;
+    char str[1024];
+    json_t *j;
+    char *s;
 
     tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
@@ -159,15 +162,12 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 
     check_sequence_num(tp->seq, &dropped, &seq_error);
 
-    char str[1024];
     memset(str, 0, sizeof(str));
-    json_t *j;
-    char *s;
 
     /* build result message string */
     {
         switch (o_capture_ethertype) {
-		case 0x0808:
+        case 0x0808:
             j = json_pack("{sisisisisisisisb}",
                     "sequence", tp->seq,
                     "delay_us", (diff_ts.tv_nsec/1000),
@@ -203,10 +203,16 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         int activity;
         int new_socket;
         fd_set readfds;
+        struct timeval timeout;
 
+        /* Initialize the file descriptor set. */
         FD_ZERO(&readfds);
         FD_SET(fd_socket, &readfds);
         max_fd = fd_socket;
+
+        /* Initialize the timeout data structure. */
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 0;
 
         /* add child sockets to set */
         for (i = 0 ; i < MAX_CLIENTS; i++) {
@@ -220,8 +226,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
             }
         }
 
-        struct timeval waitd = {0, 0};
-        activity = select(max_fd + 1, &readfds, NULL, NULL, &waitd);
+        activity = select(max_fd + 1, &readfds, NULL, NULL, &timeout);
         if ((activity < 0) && (errno != EINTR)) {
             perror("select error");
         }
@@ -246,9 +251,11 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         /* handle all active connecitons */
         for (i = 0; i < MAX_CLIENTS; i++) {
             sd = client_socket[i];
+
             if (sd == 0) {
                 continue;
             }
+
             if (FD_ISSET(sd, &readfds)) {
                 char t[32];
                 if (read(sd, t, 32) == 0) {
@@ -257,7 +264,6 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
                 }
             }
 
-            // write string + '\n' + '\0'
             if (write(sd, str, strlen(str) + 1) <= 0) {
                 client_socket[i] = 0;
             }
@@ -298,47 +304,41 @@ int open_capture_interface(gchar *ifname)
     }
 
     /* Allow the socket to be reused */
-    {
-        opt = 0;
-        rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
-        if (rc == -1) {
-            perror("setsockopt() ... enable");
-            close(fd);
-            return -1;
-        }
+    opt = 0;
+    rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
+    if (rc == -1) {
+        perror("setsockopt() ... enable");
+        close(fd);
+        return -1;
     }
 
     /* configure timestamping */
-    {
-        struct hwtstamp_config config;
+    struct hwtstamp_config config;
 
-        config.flags = 0;
-        config.tx_type = HWTSTAMP_TX_ON;
-        config.rx_filter = o_rx_filter;
-        if (config.tx_type < 0 || config.rx_filter < 0) {
-            return -1;
-        }
+    config.flags = 0;
+    config.tx_type = HWTSTAMP_TX_ON;
+    config.rx_filter = o_rx_filter;
+    if (config.tx_type < 0 || config.rx_filter < 0) {
+        return -1;
+    }
 
-        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
-        ifr.ifr_data = (caddr_t)&config;
-        if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
-            perror("ioctl() ... configure timestamping\n");
-            return -1;
-        }
+    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
+    ifr.ifr_data = (caddr_t)&config;
+    if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
+        perror("ioctl() ... configure timestamping\n");
+        return -1;
     }
 
     /* Enable timestamping */
-    {
-        opt = 0;
-        opt = SOF_TIMESTAMPING_RX_HARDWARE
-              | SOF_TIMESTAMPING_RAW_HARDWARE
-              | SOF_TIMESTAMPING_SYS_HARDWARE
-              | SOF_TIMESTAMPING_SOFTWARE;
-        rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
-        if (rc == -1) {
-            perror("setsockopt() ... enable timestamp");
-            return -1;
-        }
+    opt = 0;
+    opt = SOF_TIMESTAMPING_RX_HARDWARE
+          | SOF_TIMESTAMPING_RAW_HARDWARE
+          | SOF_TIMESTAMPING_SYS_HARDWARE
+          | SOF_TIMESTAMPING_SOFTWARE;
+    rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
+    if (rc == -1) {
+        perror("setsockopt() ... enable timestamp");
+        return -1;
     }
 
     /* Bind to device */
@@ -410,15 +410,14 @@ static GOptionEntry entries[] = {
     { "quiet",     'q', 0, G_OPTION_ARG_NONE,
             &o_quiet, "Suppress error messages", NULL },
     { "socket",    's', 0, G_OPTION_ARG_NONE,
-            &o_socket, "Write stats to domain socket", NULL },
+            &o_socket, "Write packet results to socket", NULL },
     { "ethertype", 'e', 0, G_OPTION_ARG_INT,
-            &o_capture_ethertype, "Set ethertype to filter. Default is 0x0808. ETH_P_ALL is 0x3", NULL },
+            &o_capture_ethertype, "Set ethertype to filter"
+            "(Default is 0x0808, ETH_P_ALL is 0x3)", NULL },
     { "rxfilter", 'f', 0, G_OPTION_ARG_CALLBACK,
             parse_rx_filter_cb, "Set hw rx filterfilter", NULL },
-
     { "ptp", 'p', 0, G_OPTION_ARG_CALLBACK,
             parse_rx_filter_cb, "Set hw rx filterfilter", NULL },
-
     { "version",   'V', 0, G_OPTION_ARG_NONE,
             &o_version, "Show version inforamtion and exit", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }
@@ -429,11 +428,11 @@ gint parse_command_line_options(gint *argc, char **argv)
     GError *error = NULL;
     GOptionContext *context;
 
-    context = g_option_context_new("DEVICE - receive timestamped packets");
+    context = g_option_context_new("DEVICE - receive timestamped test packets");
 
     g_option_context_add_main_entries(context, entries, NULL);
     g_option_context_set_description(context,
-        "description tbd\n"
+        "This tool receives and analyzes incoming ethernet packets.\n"
     );
 
     if (!g_option_context_parse(context, argc, &argv, &error)) {

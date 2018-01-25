@@ -4,6 +4,8 @@
 #include <net/ethernet.h>
 #include <netinet/ether.h>
 
+#define TEST_PACKET_ETHER_TYPE 0x0808
+
 struct ether_testpacket {
 	struct ether_header hdr;
 	struct timespec ts;

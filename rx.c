@@ -48,7 +48,7 @@ static gint o_verbose = 0;
 static gint o_quiet = 0;
 static gint o_version = 0;
 static gint o_socket = 0;
-static gint o_capture_ethertype = 0x0808;
+static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
 static gint o_ptp_mode = FALSE;
 
@@ -137,140 +137,187 @@ static int check_sequence_num(unsigned long seq, long *dropped_packets,
     return 0;
 }
 
-static int handle_msg(struct msghdr *msg, int fd_socket)
-{
-    struct ether_testpacket *tp;
-    struct timespec rx_ts;
+struct test_packet_result {
+    uint32_t seq;
+    uint32_t interval_us;
+    uint32_t packet_size;
+
     struct timespec diff_ts;
     uint32_t abs_ns;
     long dropped;
     gboolean seq_error;
-    char str[1024];
-    json_t *j;
-    char *s;
+};
 
-    tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
+static int handle_test_packet(struct msghdr *msg,
+        struct test_packet_result *result)
+{
+    struct ether_testpacket *tp;
+    struct timespec rx_ts;
 
     memset(&rx_ts, 0, sizeof(rx_ts));
     get_hw_timestamp(msg, &rx_ts);
 
-    /* calc diff between timestamp in testpacket tp and received packet rx_ts */
-    timespec_diff(&tp->ts, &rx_ts, &diff_ts);
+    tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
+
+    /* copy info from testpacket */
+    result->seq = tp->seq;
+    result->interval_us = tp->interval_us;
+    result->packet_size = tp->packet_size;
+
+    /* calc diff between timestamp in testpacket hardware timestamp */
+    timespec_diff(&tp->ts, &rx_ts, &result->diff_ts);
 
     /* calc absolut to interval begin */
-    abs_ns = rx_ts.tv_nsec % (tp->interval_us * 1000);
+    result->abs_ns = rx_ts.tv_nsec % (tp->interval_us * 1000);
 
-    check_sequence_num(tp->seq, &dropped, &seq_error);
+    /* calc dropped count and sequence error */
+    check_sequence_num(tp->seq, &result->dropped, &result->seq_error);
 
-    memset(str, 0, sizeof(str));
+    return 0;
+}
+
+
+static char *dump_json_test_packet(struct test_packet_result *result)
+{
+    json_t *j;
+    char *str;
+
+    j = json_pack("{sisisisisisisisb}",
+                  "sequence", result->seq,
+                  "delay_us", (result->diff_ts.tv_nsec/1000),
+                  "delay_ns", (result->diff_ts.tv_nsec),
+                  "abs_ns", result->abs_ns,
+                  "interval_us", result->interval_us,
+                  "packet_size", result->packet_size,
+                  "dropped_packets", result->dropped,
+                  "sequence_error", result->seq_error
+    );
+
+    str = json_dumps(j, JSON_COMPACT);
+    json_decref(j);
+
+    return str;
+}
+
+static int handle_status_socket(int fd_socket, char *result_str)
+{
+    int rc = 0;
+
+    int i;
+    int sd;
+    int activity;
+    int new_socket;
+    fd_set readfds;
+    struct timeval timeout;
+
+    /* Initialize the file descriptor set. */
+    FD_ZERO(&readfds);
+    FD_SET(fd_socket, &readfds);
+    max_fd = fd_socket;
+
+    /* Initialize the timeout data structure. */
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    /* add child sockets to set */
+    for (i = 0 ; i < MAX_CLIENTS; i++) {
+        sd = client_socket[i];
+        if (sd > 0) {
+            FD_SET(sd, &readfds);
+        }
+
+        if (sd > max_fd) {
+            max_fd = sd;
+        }
+    }
+
+    activity = select(max_fd + 1, &readfds, NULL, NULL, &timeout);
+    if ((activity < 0) && (errno != EINTR)) {
+        perror("select error");
+    }
+
+    /* check for new incoming connection */
+    if (FD_ISSET(fd_socket, &readfds)) {
+        if ((new_socket = accept(fd_socket, NULL, NULL)) < 0) {
+            perror("accept");
+            return 0;
+        }
+
+
+        /* todo check for max reached ... */
+        for (i = 0 ; i < MAX_CLIENTS; i++) {
+            if (client_socket[i] == 0) {
+                client_socket[i] = new_socket;
+                break;
+            }
+        }
+    }
+
+    if (result_str != NULL) {
+        return -1;
+    }
+
+    /* handle all active connecitons */
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        sd = client_socket[i];
+
+        if (sd == 0) {
+            continue;
+        }
+
+        if (FD_ISSET(sd, &readfds)) {
+            char t[32];
+            if (read(sd, t, 32) == 0) {
+                close(sd);
+                client_socket[i] = 0;
+            }
+        }
+
+        if (write(sd, result_str, strlen(result_str) + 1) <= 0) {
+            client_socket[i] = 0;
+        }
+    }
+
+    return rc;
+}
+
+static int handle_msg(struct msghdr *msg, int fd_socket)
+{
+    int rc = 0;
+    struct timespec rx_ts;
+    struct test_packet_result result;
+
+    char *result_str = NULL;
+
+    memset(&rx_ts, 0, sizeof(rx_ts));
+    get_hw_timestamp(msg, &rx_ts);
 
     /* build result message string */
     {
         switch (o_capture_ethertype) {
-        case 0x0808:
-            j = json_pack("{sisisisisisisisb}",
-                    "sequence", tp->seq,
-                    "delay_us", (diff_ts.tv_nsec/1000),
-                    "delay_ns", (diff_ts.tv_nsec),
-                    "abs_ns", abs_ns,
-                    "interval_us", tp->interval_us,
-                    "packet_size", tp->packet_size,
-                    "sequence_error", seq_error,
-                    "dropped_packets", dropped
-            );
-            s = json_dumps(j, JSON_COMPACT);
-            //XXXX: check size
-            strncpy(str, s, sizeof(str));
-            json_decref(j);
-            free(s);
+        case TEST_PACKET_ETHER_TYPE:
+            handle_test_packet(msg, &result);
+            result_str = dump_json_test_packet(&result);
             break;
         default:
-            snprintf(str, sizeof(str), "TS(l): %lld.%.06ld;\n",
-                (long long)rx_ts.tv_sec,
-                (rx_ts.tv_nsec / 1000)
-            );
+            printf("tbd ... other packet\n");
             break;
         }
     }
 
-    if (o_verbose) {
-        printf("%s\n", str);
+    if (o_verbose && result_str) {
+        printf("%s\n", result_str);
     }
 
     if (fd_socket != -1) {
-        int i;
-        int sd;
-        int activity;
-        int new_socket;
-        fd_set readfds;
-        struct timeval timeout;
-
-        /* Initialize the file descriptor set. */
-        FD_ZERO(&readfds);
-        FD_SET(fd_socket, &readfds);
-        max_fd = fd_socket;
-
-        /* Initialize the timeout data structure. */
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 0;
-
-        /* add child sockets to set */
-        for (i = 0 ; i < MAX_CLIENTS; i++) {
-            sd = client_socket[i];
-            if (sd > 0) {
-                FD_SET(sd, &readfds);
-            }
-
-            if (sd > max_fd) {
-                max_fd = sd;
-            }
-        }
-
-        activity = select(max_fd + 1, &readfds, NULL, NULL, &timeout);
-        if ((activity < 0) && (errno != EINTR)) {
-            perror("select error");
-        }
-
-        /* check for new incoming connection */
-        if (FD_ISSET(fd_socket, &readfds)) {
-            if ((new_socket = accept(fd_socket, NULL, NULL)) < 0) {
-                perror("accept");
-                return 0;
-            }
-
-
-            /* todo check for max reached ... */
-            for (i = 0 ; i < MAX_CLIENTS; i++) {
-                if (client_socket[i] == 0) {
-                    client_socket[i] = new_socket;
-                    break;
-                }
-            }
-        }
-
-        /* handle all active connecitons */
-        for (i = 0; i < MAX_CLIENTS; i++) {
-            sd = client_socket[i];
-
-            if (sd == 0) {
-                continue;
-            }
-
-            if (FD_ISSET(sd, &readfds)) {
-                char t[32];
-                if (read(sd, t, 32) == 0) {
-                    close(sd);
-                    client_socket[i] = 0;
-                }
-            }
-
-            if (write(sd, str, strlen(str) + 1) <= 0) {
-                client_socket[i] = 0;
-            }
-        }
+        rc = handle_status_socket(fd_socket, result_str);
     }
 
-    return 0;
+	if (result_str != NULL) {
+	    free(result_str);
+	}
+
+    return rc;
 }
 
 int get_own_eth_address(int fd, gchar *ifname, struct ether_addr *src_eth_addr)

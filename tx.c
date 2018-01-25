@@ -338,7 +338,7 @@ int main(int argc, char **argv)
     memcpy(tp->hdr.ether_shost, &ifopts.ifr_hwaddr.sa_data, ETH_ALEN);
 
     /* ethertype */
-    tp->hdr.ether_type = 0x0808;
+    tp->hdr.ether_type = TEST_PACKET_ETHER_TYPE;
 
     if (o_interval_ms) {
         struct timespec sleep_ts;

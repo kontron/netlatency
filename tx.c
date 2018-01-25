@@ -38,6 +38,7 @@
 #include <netinet/ether.h>
 #include <netinet/in.h>
 #include <netpacket/packet.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,7 +48,6 @@
 #include <time.h>
 #include <unistd.h>
 
-//#include <linux/errqueue.h>
 
 #include <glib.h>
 #include <glib/gprintf.h>
@@ -64,6 +64,7 @@ static gint o_quiet = 0;
 static gint o_version = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = -1;
+static int o_queue_prio = 7;
 static gint o_memlock = 1;
 static gint o_config_control_port = 0;
 
@@ -144,6 +145,8 @@ static GOptionEntry entries[] = {
             &o_interval_ms, "Interval in milli seconds", NULL },
     { "prio",        'p', 0, G_OPTION_ARG_INT,
             &o_sched_prio, "Set scheduler priority", NULL },
+    { "queue-prio",  'Q', 0, G_OPTION_ARG_INT,
+            &o_queue_prio, "Set skb priority", NULL },
     { "memlock",     'm', 0, G_OPTION_ARG_INT,
             &o_memlock, "Configure memlock (default is 1)", NULL },
     { "padding",     'P', 0, G_OPTION_ARG_INT,
@@ -284,7 +287,6 @@ int main(int argc, char **argv)
 
     eth_t *eth;
     struct ifreq ifopts;
-//    size_t idx = 0;
 
     struct timespec ts;
 
@@ -312,6 +314,11 @@ int main(int argc, char **argv)
         perror("eth_open");
         return -1;
     }
+
+    /* Set skb priority */
+    int optval = o_queue_prio;
+    setsockopt(eth->fd, SOL_SOCKET, SO_PRIORITY, &optval, sizeof(int));
+
 
     config_thread();
     memset(tp, 0, sizeof(struct ether_testpacket));

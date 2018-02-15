@@ -52,7 +52,7 @@ static inline int a_less_b(const struct timespec *a, const struct timespec *b)
 	return 0;
 }
 
-void wait_for_next_timeslice(int interval_ms)
+void wait_for_next_timeslice(int interval_ms, struct timespec *ts_desired)
 {
 	int timer_fd;
 	struct timespec ts_start;
@@ -73,6 +73,9 @@ void wait_for_next_timeslice(int interval_ms)
 
 	/* calculate wanted target time */
 	get_timeval_to_next_slice(&ts_start, &ts_target, interval_ms);
+	if (ts_desired != NULL) {
+		memcpy(ts_desired, &ts_target, sizeof(struct timespec));
+	}
 
 	/* set estimated time before  */
 	memset(&new_value, 0, sizeof(new_value));

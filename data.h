@@ -9,6 +9,7 @@
 struct ether_testpacket {
 	struct ether_header hdr;
 	struct timespec ts;
+	struct timespec ts_desired;
 	uint32_t seq;
 	uint32_t interval_us;
 	uint32_t packet_size;

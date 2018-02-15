@@ -364,7 +364,7 @@ int main(int argc, char **argv)
             }
 
             /* sync to desired millisecond start */
-            wait_for_next_timeslice(o_interval_ms);
+            wait_for_next_timeslice(o_interval_ms, &tp->ts_desired);
 
             clock_gettime(CLOCK_REALTIME, &ts);
             calc_stats(&ts, &stats, o_interval_ms * 1000);

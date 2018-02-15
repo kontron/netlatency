@@ -253,7 +253,7 @@ static int handle_status_socket(int fd_socket, char *result_str)
         }
     }
 
-    if (result_str != NULL) {
+	if (result_str == NULL) {
         return -1;
     }
 

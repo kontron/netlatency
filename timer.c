@@ -42,7 +42,7 @@ int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
 	return 0;
 }
 
-static void get_time_before_target(int time_before_ns, struct timespec *now,
+static void get_timer_before_target(int time_before_ns, struct timespec *now,
 		struct timespec *ts_target, struct itimerspec *timer_before)
 {
 	memset(timer_before, 0, sizeof(struct itimerspec));
@@ -50,10 +50,15 @@ static void get_time_before_target(int time_before_ns, struct timespec *now,
 	timer_before->it_value.tv_sec = ts_target->tv_sec;
 	timer_before->it_value.tv_nsec = ts_target->tv_nsec;
 
-	/* jump over second */
+	/* jump to next second */
 	if (ts_target->tv_sec > now->tv_sec) {
-		timer_before->it_value.tv_nsec =
-				(1000000000 - time_before_ns + ts_target->tv_nsec);
+		if ((1000000000 + ts_target->tv_nsec - now->tv_nsec) <= time_before_ns) {
+			timer_before->it_value.tv_sec = -1;
+			timer_before->it_value.tv_nsec = -1;
+		} else {
+			timer_before->it_value.tv_nsec =
+					(1000000000 - time_before_ns + ts_target->tv_nsec);
+		}
 	} else {
 		timer_before->it_value.tv_nsec -= time_before_ns;
 	}
@@ -106,13 +111,13 @@ void wait_for_next_timeslice(int interval_ms, struct timespec *ts_desired)
 	}
 
 
+	struct itimerspec timer_before;
+	get_timer_before_target(TIME_BEFORE_NS, &ts_now, &ts_target,
+			&timer_before);
 	/* set estimated time before and start timer */
-	{
-		struct itimerspec timer_before;
+	if (timer_before.it_value.tv_sec != -1) {
 		int timer_fd;
 		ssize_t s;
-
-		get_time_before_target(TIME_BEFORE_NS, &ts_now, &ts_target, &timer_before);
 
 		timer_fd = timerfd_create(CLOCK_REALTIME, 0);
 		if (timer_fd == -1) {

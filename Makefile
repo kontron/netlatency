@@ -70,10 +70,11 @@ all: real-all
 
 include tests/tests.mk
 
+ALL_TARGETS += $(o)rx $(o)tx $(o)reader
+
 real-all: $(ALL_TARGETS)
 
 
-ALL_TARGETS += $(o)rx $(o)tx $(o)reader
 
 
 CLEAN_TARGETS += clean-rx

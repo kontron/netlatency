@@ -116,7 +116,6 @@ static void busy_poll_to_target_time(struct timespec *ts_target)
 		}
 		loopcount++;
 	}
-	printf("loop %d\n", loopcount);
 }
 
 void wait_for_next_timeslice(int interval_ms, struct timespec *ts_desired)

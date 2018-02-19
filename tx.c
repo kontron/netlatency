@@ -373,7 +373,7 @@ int main(int argc, char **argv)
             memcpy(&tp->ts, &ts, sizeof(struct timespec));
 
             tp->interval_us = o_interval_ms * 1000;
-            tp->packet_size= o_packet_size;
+            tp->packet_size = o_packet_size;
 
             eth_send(eth, buf, o_packet_size);
 

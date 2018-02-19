@@ -66,13 +66,14 @@ endif
 
 DEPS := $(shell find $(o) -name '*.d')
 
+all: real-all
 
-
-ALL_TARGETS += $(o)rx $(o)tx $(o)reader
+include tests/tests.mk
 
 real-all: $(ALL_TARGETS)
 
-all: real-all
+
+ALL_TARGETS += $(o)rx $(o)tx $(o)reader
 
 
 CLEAN_TARGETS += clean-rx

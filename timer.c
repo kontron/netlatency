@@ -50,17 +50,44 @@ static void get_timer_before_target(int time_before_ns, struct timespec *now,
 	timer_before->it_value.tv_sec = ts_target->tv_sec;
 	timer_before->it_value.tv_nsec = ts_target->tv_nsec;
 
-	/* jump to next second */
+//	printf("------\n");
+
+	gint64 diff = 0;
+
+	diff = ts_target->tv_nsec - now->tv_nsec;
+
 	if (ts_target->tv_sec > now->tv_sec) {
-		if ((1000000000 + ts_target->tv_nsec - now->tv_nsec) <= time_before_ns) {
-			timer_before->it_value.tv_sec = -1;
-			timer_before->it_value.tv_nsec = -1;
+		diff += 1000000000;
+//		printf("diff a ....%ld \n", diff);
+	}
+//	printf("diff b ....%ld \n", diff);
+
+
+	if (diff <= time_before_ns) {
+//		printf("x ....%ld\n", diff);
+		timer_before->it_value.tv_sec = -1;
+		timer_before->it_value.tv_nsec = -1;
+		return;
+	}
+
+	if (ts_target->tv_sec > now->tv_sec) {
+//		printf("a ....\n");
+		if (1000000000 - now->tv_nsec <= time_before_ns) {
+			timer_before->it_value.tv_nsec = 0;
+			printf("a.1 ....\n");
+		} else if (ts_target->tv_nsec < time_before_ns) {
+//			printf("a.2 ....\n");
+			timer_before->it_value.tv_sec = ts_target->tv_sec - 1;
+			timer_before->it_value.tv_nsec = 1000000000 - time_before_ns + ts_target->tv_nsec;
+
 		} else {
-			timer_before->it_value.tv_nsec =
-					(1000000000 - time_before_ns + ts_target->tv_nsec);
+//			printf("a.3 ....\n");
+			timer_before->it_value.tv_nsec -= time_before_ns;
 		}
 	} else {
-		timer_before->it_value.tv_nsec -= time_before_ns;
+//		printf("b ....\n");
+		timer_before->it_value.tv_sec = ts_target->tv_sec;
+		timer_before->it_value.tv_nsec = ts_target->tv_nsec - time_before_ns;
 	}
 }
 

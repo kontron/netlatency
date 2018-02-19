@@ -119,17 +119,17 @@ void test_get_timer_before_target(void)
 	struct timespec ts_target;
 	struct itimerspec timer;
 
-	now.tv_sec = 0;
-	now.tv_nsec = 0;
-	ts_target.tv_sec = 0;
-	ts_target.tv_nsec = 200000;
-	get_timer_before_target(200000, &now, &ts_target, &timer);
-	g_assert_cmpint(timer.it_value.tv_sec, ==, 0);
-	g_assert_cmpint(timer.it_value.tv_nsec, ==, 0);
-
-	now.tv_sec = 0;
+	now.tv_sec = 1;
 	now.tv_nsec = 0;
 	ts_target.tv_sec = 1;
+	ts_target.tv_nsec = 200000;
+	get_timer_before_target(200000, &now, &ts_target, &timer);
+	g_assert_cmpint(timer.it_value.tv_sec, ==, -1);
+	g_assert_cmpint(timer.it_value.tv_nsec, ==, -1);
+
+	now.tv_sec = 1;
+	now.tv_nsec = 0;
+	ts_target.tv_sec = 2;
 	ts_target.tv_nsec = 100000;
 	get_timer_before_target(200000, &now, &ts_target, &timer);
 	g_assert_cmpint(timer.it_value.tv_sec, ==, 1);
@@ -140,7 +140,7 @@ void test_get_timer_before_target(void)
 	ts_target.tv_sec = 1;
 	ts_target.tv_nsec = 0;
 	get_timer_before_target(200000, &now, &ts_target, &timer);
-	g_assert_cmpint(timer.it_value.tv_sec, ==, 1);
+	g_assert_cmpint(timer.it_value.tv_sec, ==, 0);
 	g_assert_cmpint(timer.it_value.tv_nsec, ==, 999800000);
 
 	now.tv_sec = 0;
@@ -158,6 +158,14 @@ void test_get_timer_before_target(void)
 	get_timer_before_target(300000, &now, &ts_target, &timer);
 	g_assert_cmpint(timer.it_value.tv_sec, ==, -1);
 	g_assert_cmpint(timer.it_value.tv_nsec, ==, -1);
+
+	now.tv_sec = 1519039623;
+	now.tv_nsec = 999058882;
+	ts_target.tv_sec = 1519039624;
+	ts_target.tv_nsec = 0;
+	get_timer_before_target(300000, &now, &ts_target, &timer);
+	g_assert_cmpint(timer.it_value.tv_sec, ==, 1519039623);
+	g_assert_cmpint(timer.it_value.tv_nsec, ==, 999700000);
 
 }
 

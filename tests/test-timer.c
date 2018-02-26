@@ -16,6 +16,110 @@
 /*
  * TESTS
  */
+static void test_timespec_diff(void)
+{
+	struct timespec a;
+	struct timespec b;
+	struct timespec diff;
+
+	a.tv_sec = 0;
+	a.tv_nsec = 0;
+	b.tv_sec = 0;
+	b.tv_nsec = 0;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 0);
+	g_assert_cmpint(diff.tv_nsec, ==, 0);
+
+	a.tv_sec = 1;
+	a.tv_nsec = 0;
+	b.tv_sec = 0;
+	b.tv_nsec = 0;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, -1);
+	g_assert_cmpint(diff.tv_nsec, ==, 0);
+
+	a.tv_sec = 0;
+	a.tv_nsec = 0;
+	b.tv_sec = 1;
+	b.tv_nsec = 0;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 1);
+	g_assert_cmpint(diff.tv_nsec, ==, 0);
+
+	a.tv_sec = 0;
+	a.tv_nsec = 100000000;
+	b.tv_sec = 0;
+	b.tv_nsec = 0;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 0);
+	g_assert_cmpint(diff.tv_nsec, ==, -100000000);
+
+	a.tv_sec = 0;
+	a.tv_nsec = 0;
+	b.tv_sec = 0;
+	b.tv_nsec = 100000000;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 0);
+	g_assert_cmpint(diff.tv_nsec, ==, 100000000);
+
+	a.tv_sec = 0;
+	a.tv_nsec = 900000000;
+	b.tv_sec = 0;
+	b.tv_nsec = 100000000;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 0);
+	g_assert_cmpint(diff.tv_nsec, ==, -800000000);
+
+	a.tv_sec = 0;
+	a.tv_nsec = 100000000;
+	b.tv_sec = 0;
+	b.tv_nsec = 900000000;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 0);
+	g_assert_cmpint(diff.tv_nsec, ==, 800000000);
+
+	a.tv_sec = 1;
+	a.tv_nsec = 100000000;
+	b.tv_sec = 0;
+	b.tv_nsec = 900000000;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 0);
+	g_assert_cmpint(diff.tv_nsec, ==, -200000000);
+
+	a.tv_sec = 0;
+	a.tv_nsec = 900000000;
+	b.tv_sec = 1;
+	b.tv_nsec = 100000000;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 0);
+	g_assert_cmpint(diff.tv_nsec, ==, 200000000);
+
+	a.tv_sec = 0;
+	a.tv_nsec = 900000000;
+	b.tv_sec = 10;
+	b.tv_nsec = 100000000;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 9);
+	g_assert_cmpint(diff.tv_nsec, ==, 200000000);
+
+	a.tv_sec = 1519657344;
+	a.tv_nsec = 900000000;
+	b.tv_sec = 1519657344;
+	b.tv_nsec = 100000000;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 0);
+	g_assert_cmpint(diff.tv_nsec, ==, -800000000);
+
+	a.tv_sec = 1519657344;
+	a.tv_nsec = 900000000;
+	b.tv_sec = 1519657354;
+	b.tv_nsec = 100000000;
+	timespec_diff(&a, &b, &diff);
+	g_assert_cmpint(diff.tv_sec, ==, 9);
+	g_assert_cmpint(diff.tv_nsec, ==, 200000000);
+
+}
+
 static void test_get_timeval_to_next_slice(void)
 {
 	struct timespec now;
@@ -172,6 +276,9 @@ void test_get_timer_before_target(void)
 int main(int argc, char** argv)
 {
 	g_test_init(&argc, &argv, NULL);
+
+	g_test_add_func("/timer/test_timespec_diff",
+			test_timespec_diff);
 
 	g_test_add_func("/timer/a/valid",
 			test_get_timeval_to_next_slice);

@@ -82,7 +82,7 @@ CLEAN_TARGETS += clean-tx
 CLEAN_TARGETS += clean-reader
 INSTALL_TARGETS += install-rx
 
-rx_SOURCES := rx.c stats.c domain_socket.c
+rx_SOURCES := rx.c stats.c domain_socket.c timer.c
 rx_OBJECTS := $(addprefix $(o),$(rx_SOURCES:.c=.o))
 
 $(o)%.o: %.c

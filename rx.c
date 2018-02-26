@@ -38,9 +38,10 @@
 
 #include <jansson.h>
 
-#include "stats.h"
 #include "data.h"
 #include "domain_socket.h"
+#include "stats.h"
+#include "timer.h"
 
 
 static gchar *help_description = NULL;

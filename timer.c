@@ -10,6 +10,17 @@
 
 #include <glib.h>
 
+#define NSEC_PER_SEC 1000000000
+void timespec_diff(struct timespec *a, struct timespec *b,
+                   struct timespec *result)
+{
+	gint64 diff;
+	diff = NSEC_PER_SEC * (gint64)((gint64) b->tv_sec - (gint64) a->tv_sec);;
+	diff += ((gint64) b->tv_nsec - (gint64) a->tv_nsec);
+	result->tv_sec = diff / NSEC_PER_SEC;
+	result->tv_nsec = diff % NSEC_PER_SEC;
+}
+
 void nanosleep_until(struct timespec *ts, int delay)
 {
 	ts->tv_nsec += delay;
@@ -20,7 +31,6 @@ void nanosleep_until(struct timespec *ts, int delay)
 	}
 	clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, ts, NULL);
 }
-
 
 #define TIME_BEFORE_NS 300000
 

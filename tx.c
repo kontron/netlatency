@@ -69,7 +69,7 @@ static gint o_config_control_port = 0;
 
 /*
     TODO:
-    the configuration can be set by conifg thread .. use threadsafe access
+    the configuration can be set by config thread .. use threadsafe access
     https://developer.gnome.org/glib/2.54/glib-Atomic-Operations.html
 */
 gint o_interval_ms = 0;

@@ -191,7 +191,7 @@ static void config_thread(void)
     /* Lock memory, prevent memory from being paged to the swap area */
     if (o_memlock) {
         if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
-            printf("mlockall failed: %m\n");
+            perror("mlockal");
             exit(-2);
         }
     }

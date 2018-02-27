@@ -32,6 +32,7 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <linux/sockios.h>
 #include <net/if.h>
@@ -44,7 +45,9 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -209,6 +212,47 @@ static void config_thread(void)
     }
 }
 
+static int latency_target_fd = -1;
+static gint32 latency_target_value = 0;
+
+/* Latency trick
+ * if the file /dev/cpu_dma_latency exists,
+ * open it and write a zero into it. This will tell
+ * the power management system not to transition to
+ * a high cstate (in fact, the system acts like idle=poll)
+ * When the fd to /dev/cpu_dma_latency is closed, the behavior
+ * goes back to the system default.
+ *
+ * Documentation/power/pm_qos_interface.txt
+ */
+static void set_latency_target(gint32 latency_value)
+{
+    struct stat s;
+    int err;
+
+    errno = 0;
+    err = stat("/dev/cpu_dma_latency", &s);
+    if (err == -1) {
+        perror("stat /dev/cpu_dma_latency failed");
+        return;
+    }
+
+    errno = 0;
+    latency_target_fd = open("/dev/cpu_dma_latency", O_RDWR);
+    if (latency_target_fd == -1) {
+        perror("open /dev/cpu_dma_latency");
+        return;
+    }
+
+    errno = 0;
+    err = write(latency_target_fd, &latency_value, 4);
+    if (err < 1) {
+        perror("error setting cpu_dma_latency");
+        close(latency_target_fd);
+        return;
+    }
+}
+
 void busy_poll(void)
 {
     struct timespec ts;
@@ -301,6 +345,10 @@ int main(int argc, char **argv)
 
 
     config_thread();
+
+    /* use the /dev/cpu_dma_latency trick if it's there */
+    set_latency_target(latency_target_value);
+
     memset(tp, 0, sizeof(struct ether_testpacket));
 
     /* determine own ethernet address */
@@ -382,7 +430,7 @@ int main(int argc, char **argv)
                 json_decref(j);
                 printf("%s\n", str);
                 free(str);
-			}
+            }
 
             tp->seq++;
         }

@@ -381,16 +381,16 @@ int main(int argc, char **argv)
             }
 
             /* sync to desired millisecond start */
-            wait_for_next_timeslice(o_interval_ms, &tp->ts_desired);
+            wait_for_next_timeslice(o_interval_ms, &tp->ts_tx_target);
+
+            tp->interval_us = o_interval_ms * 1000;
+            tp->packet_size = o_packet_size;
 
             clock_gettime(CLOCK_REALTIME, &ts);
             calc_stats(&ts, &stats, o_interval_ms * 1000);
 
             /* update new timestamp in packet */
-            memcpy(&tp->ts, &ts, sizeof(struct timespec));
-
-            tp->interval_us = o_interval_ms * 1000;
-            tp->packet_size = o_packet_size;
+            memcpy(&tp->ts_tx, &ts, sizeof(struct timespec));
 
             eth_send(eth, buf, o_packet_size);
 
@@ -400,7 +400,7 @@ int main(int argc, char **argv)
 
 
             struct timespec diff_desired;
-            timespec_diff(&ts, &tp->ts_desired, &diff_desired);
+            timespec_diff(&ts, &tp->ts_tx_target, &diff_desired);
 
             if (o_verbose) {
                 json_t *j;
@@ -424,7 +424,7 @@ int main(int argc, char **argv)
 
     } else {
         clock_gettime(CLOCK_REALTIME, &ts);
-        memcpy(&tp->ts, &ts, sizeof(struct timespec));
+        memcpy(&tp->ts_tx, &ts, sizeof(struct timespec));
 
         eth_send(eth, buf, o_packet_size);
 

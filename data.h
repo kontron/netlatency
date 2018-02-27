@@ -8,8 +8,8 @@
 
 struct ether_testpacket {
 	struct ether_header hdr;
-	struct timespec ts;
-	struct timespec ts_desired;
+	struct timespec ts_tx; /* timestamp before sending */
+	struct timespec ts_tx_target; /* timestamp of wished target time */
 	uint32_t seq;
 	uint32_t interval_us;
 	uint32_t packet_size;

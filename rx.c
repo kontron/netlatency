@@ -166,7 +166,7 @@ static int handle_test_packet(struct msghdr *msg,
     result->packet_size = tp->packet_size;
 
     /* calc diff between timestamp in testpacket hardware timestamp */
-    timespec_diff(&tp->ts_desired, &rx_ts, &result->diff_ts);
+    timespec_diff(&tp->ts_tx_target, &rx_ts, &result->diff_ts);
 
     /* calc absolut to interval begin */
     result->abs_ns = rx_ts.tv_nsec % (tp->interval_us * 1000);

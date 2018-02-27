@@ -48,9 +48,10 @@
 #include <time.h>
 #include <unistd.h>
 
-
 #include <glib.h>
 #include <glib/gprintf.h>
+
+#include <jansson.h>
 
 #include "config_control.h"
 #include "data.h"
@@ -256,7 +257,24 @@ void busy_poll(void)
 
 void print_packet_info(struct timespec *ts, struct stats *stats)
 {
-    char str[1024];
+
+#if 0
+    json_t *j;
+    gchar *str;
+    j = json_pack("{sisisisisi}",
+                  "sequence", tp->seq,
+                  "tx_ts_sec", (long long)ts->tv_sec,
+                  "tx_ts_nsec", (ts->tv_nsec / 1000),
+                  "tx_ts_diff_sec", diff_desired.tv_sec,
+                  "tx_ts_diff_nsec", diff_desired.tv_nsec
+    );
+
+    str = json_dumps(j, JSON_COMPACT);
+    json_decref(j);
+    printf("%s\n", str);
+    free(str);
+#else
+    gchar str[1024];
 
     memset(str, 0, sizeof(str));
     snprintf(str, sizeof(str),
@@ -276,15 +294,14 @@ void print_packet_info(struct timespec *ts, struct stats *stats)
     );
 
     printf("%s", str);
+#endif
 }
 
 int main(int argc, char **argv)
 {
     int rv = 0;
-
     eth_t *eth;
     struct ifreq ifopts;
-
     struct timespec ts;
 
     parse_command_line_options(&argc, argv);
@@ -377,9 +394,30 @@ int main(int argc, char **argv)
 
             eth_send(eth, buf, o_packet_size);
 
+//            if (o_verbose) {
+//                print_packet_info(&ts, &stats);
+//            }
+
+
+            struct timespec diff_desired;
+            timespec_diff(&ts, &tp->ts_desired, &diff_desired);
+
             if (o_verbose) {
-                print_packet_info(&ts, &stats);
-            }
+                json_t *j;
+                char *str;
+                j = json_pack("{sisisisisi}",
+                              "sequence", tp->seq,
+                              "tx_ts_sec", (guint64)ts.tv_sec,
+                              "tx_ts_nsec", (ts.tv_nsec / 1000),
+                              "tx_ts_diff_sec", diff_desired.tv_sec,
+                              "tx_ts_diff_nsec", diff_desired.tv_nsec
+                );
+
+                str = json_dumps(j, JSON_COMPACT);
+                json_decref(j);
+                printf("%s\n", str);
+                free(str);
+			}
 
             tp->seq++;
         }

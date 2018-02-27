@@ -189,24 +189,11 @@ static void config_thread(void)
     int max_prio;
 
     /* Lock memory, prevent memory from being paged to the swap area */
-    if (o_verbose) {
-        printf("config memlock %d\n", o_memlock);
-    }
-
     if (o_memlock) {
         if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
             printf("mlockall failed: %m\n");
             exit(-2);
         }
-    }
-
-    if (o_verbose) {
-        printf("SCHED_FIFO min %d / max %d\n",
-                sched_get_priority_min(SCHED_FIFO),
-                sched_get_priority_max(SCHED_FIFO));
-        printf("SCHED_RR min %d / max %d\n",
-                sched_get_priority_min(SCHED_RR),
-                sched_get_priority_max(SCHED_RR));
     }
 
     max_prio = sched_get_priority_max(policy);
@@ -219,28 +206,6 @@ static void config_thread(void)
     if (rc) {
         perror("pthread_setschedparam()");
         exit (1);
-    }
-
-    if (o_verbose) {
-        struct sched_param sp;
-        int policy;
-        pthread_getschedparam(pthread_self(), &policy, &sp);
-        printf("scheduler\n");
-        switch (policy) {
-            case SCHED_FIFO:
-                printf("  policy: SCHED_FIFO\n");
-                break;
-            case SCHED_RR:
-                printf("  policy: SCHED_RR\n");
-                break;
-            case SCHED_OTHER:
-                printf("  policy: SCHED_OTHER\n");
-                break;
-            default:
-                printf("  policy: ???\n");
-                break;
-        }
-        printf("  priority: %d\n", sp.sched_priority);
     }
 }
 

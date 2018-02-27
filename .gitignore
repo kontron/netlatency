@@ -3,3 +3,4 @@
 reader
 rx
 tx
+tests/test-timer

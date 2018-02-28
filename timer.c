@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -129,7 +130,34 @@ static void busy_poll_to_target_time(struct timespec *ts_target)
 }
 
 void wait_for_next_timeslice(struct timespec *interval,
-		struct timespec *ts_desired)
+		struct timespec *next)
+{
+	int rc;
+	struct timespec ts_now;
+	struct timespec ts_target;
+
+	if (clock_gettime(CLOCK_REALTIME, &ts_now)) {
+		perror("clock_gettime");
+	}
+
+	/* calculate wanted target time */
+	get_timeval_to_next_slice(&ts_now, &ts_target, interval);
+	if (next != NULL) {
+		memcpy(next, &ts_target, sizeof(struct timespec));
+	}
+
+	rc = clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts_target, NULL);
+	if (rc != 0) {
+		if (rc != EINTR) {
+			perror("clock_nanosleep failed");
+		}
+	}
+
+	return;
+}
+
+void wait_for_next_timeslice_legacy(struct timespec *interval,
+		struct timespec *next)
 {
 	struct timespec ts_now;
 	struct timespec ts_end;
@@ -143,8 +171,8 @@ void wait_for_next_timeslice(struct timespec *interval,
 
 	/* calculate wanted target time */
 	get_timeval_to_next_slice(&ts_now, &ts_target, interval);
-	if (ts_desired != NULL) {
-		memcpy(ts_desired, &ts_target, sizeof(struct timespec));
+	if (next != NULL) {
+		memcpy(next, &ts_target, sizeof(struct timespec));
 	}
 
 

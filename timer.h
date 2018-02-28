@@ -14,4 +14,7 @@ int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
 void wait_for_next_timeslice(struct timespec *interval,
 		struct timespec *ts_desired);
 
+void wait_for_next_timeslice_legacy(struct timespec *interval,
+		struct timespec *next);
+
 #endif /* __TIMER_H__ */

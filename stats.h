@@ -9,5 +9,6 @@ struct stats {
 	struct timespec max;
 };
 
-void calc_stats(struct timespec *ts, struct stats *stats, int interval_us);
+void calc_stats(struct timespec *ts, struct stats *stats,
+		struct timespec *interval);
 #endif

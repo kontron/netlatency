@@ -89,13 +89,14 @@ void check_for_max(struct timespec *val, struct stats *stats)
 	}
 }
 
-void calc_stats(struct timespec *ts, struct stats *stats, int interval_us)
+void calc_stats(struct timespec *ts, struct stats *stats,
+		struct timespec *interval)
 {
 	add_stamps(ts, &ts_array);
 
 	if (ts_array.count > 2) {
 		get_diff_to_index(&ts_array, ts, -1, &stats->diff);
-		stats->diff.tv_nsec -= (interval_us * 1000);
+		stats->diff.tv_nsec -= (interval->tv_nsec);
 		add_stamps(&stats->diff, &diffs_array);
 
 		stats->mean = calc_rms(&diffs_array);

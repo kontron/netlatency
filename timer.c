@@ -35,9 +35,9 @@ void nanosleep_until(struct timespec *ts, int delay)
 #define TIME_BEFORE_NS 300000
 
 int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
-        int interval_ms)
+        struct timespec *interval)
 {
-	gint64 interval_ns = (gint64)interval_ms * 1000000;
+	gint64 interval_ns = interval->tv_nsec;
 
 	if ((now->tv_nsec + interval_ns) >= 1000000000) {
 		next->tv_sec = now->tv_sec + 1;
@@ -128,7 +128,8 @@ static void busy_poll_to_target_time(struct timespec *ts_target)
 	}
 }
 
-void wait_for_next_timeslice(int interval_ms, struct timespec *ts_desired)
+void wait_for_next_timeslice(struct timespec *interval,
+		struct timespec *ts_desired)
 {
 	struct timespec ts_now;
 	struct timespec ts_end;
@@ -141,7 +142,7 @@ void wait_for_next_timeslice(int interval_ms, struct timespec *ts_desired)
 	}
 
 	/* calculate wanted target time */
-	get_timeval_to_next_slice(&ts_now, &ts_target, interval_ms);
+	get_timeval_to_next_slice(&ts_now, &ts_target, interval);
 	if (ts_desired != NULL) {
 		memcpy(ts_desired, &ts_target, sizeof(struct timespec));
 	}

@@ -8,6 +8,10 @@ int timer_init(void);
 
 void nanosleep_until(struct timespec *ts, int delay);
 
-void wait_for_next_timeslice(int interval_ms, struct timespec *ts_desired);
+int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
+        struct timespec *interval);
+
+void wait_for_next_timeslice(struct timespec *interval,
+		struct timespec *ts_desired);
 
 #endif /* __TIMER_H__ */

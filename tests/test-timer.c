@@ -124,47 +124,53 @@ static void test_get_timeval_to_next_slice(void)
 {
 	struct timespec now;
 	struct timespec next;
-	int interval_ms;
+	struct timespec interval;
 
 	now.tv_sec = 0;
 	now.tv_nsec = 0;
-	interval_ms = 1;
-	get_timeval_to_next_slice(&now, &next, interval_ms);
+	interval.tv_sec= 0;
+	interval.tv_nsec= 1000000;
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 0);
 	g_assert_cmpint(next.tv_nsec, ==, 1000000);
 
 	now.tv_sec = 0;
 	now.tv_nsec = 990000;
-	interval_ms = 1;
-	get_timeval_to_next_slice(&now, &next, interval_ms);
+	interval.tv_sec = 0;
+	interval.tv_nsec = 1000000;
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 0);
 	g_assert_cmpint(next.tv_nsec, ==, 1000000);
 
 	now.tv_sec = 0;
 	now.tv_nsec = 999000000;
-	interval_ms = 1;
-	get_timeval_to_next_slice(&now, &next, interval_ms);
+	interval.tv_sec = 0;
+	interval.tv_nsec = 1000000;
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 1);
 	g_assert_cmpint(next.tv_nsec, ==, 0);
 
 	now.tv_sec = 0;
 	now.tv_nsec = 0;
-	interval_ms = 1000;
-	get_timeval_to_next_slice(&now, &next, interval_ms);
+	interval.tv_sec = 0;
+	interval.tv_nsec = 1000000000;
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 1);
 	g_assert_cmpint(next.tv_nsec, ==, 0);
 
 	now.tv_sec = 0;
 	now.tv_nsec = 500000000;
-	interval_ms = 1000;
-	get_timeval_to_next_slice(&now, &next, interval_ms);
+	interval.tv_sec = 0;
+	interval.tv_nsec = 1000000000;
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 1);
 	g_assert_cmpint(next.tv_nsec, ==, 0);
 
 	now.tv_sec = 0;
 	now.tv_nsec = 999030000;
-	interval_ms = 1;
-	get_timeval_to_next_slice(&now, &next, interval_ms);
+	interval.tv_sec = 0;
+	interval.tv_nsec = 1000000;
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 1);
 	g_assert_cmpint(next.tv_nsec, ==, 0);
 }

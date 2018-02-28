@@ -377,7 +377,11 @@ int main(int argc, char **argv)
 
     if (o_interval_ms) {
         struct timespec sleep_ts;
+        struct timespec interval;
         struct stats stats;
+
+		interval.tv_sec = 0;
+		interval.tv_nsec = o_interval_ms * 1000000;
 
         memset(&stats, 0, sizeof(struct stats));
 
@@ -394,13 +398,13 @@ int main(int argc, char **argv)
             }
 
             /* sync to desired millisecond start */
-            wait_for_next_timeslice(o_interval_ms, &tp->ts_tx_target);
+            wait_for_next_timeslice(&interval, &tp->ts_tx_target);
 
             tp->interval_us = o_interval_ms * 1000;
             tp->packet_size = o_packet_size;
 
             clock_gettime(CLOCK_REALTIME, &ts);
-            calc_stats(&ts, &stats, o_interval_ms * 1000);
+            calc_stats(&ts, &stats, &interval);
 
             /* update new timestamp in packet */
             memcpy(&tp->ts_tx, &ts, sizeof(struct timespec));

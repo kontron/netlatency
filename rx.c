@@ -22,6 +22,7 @@
 #include <linux/sockios.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,14 +50,15 @@ static gint o_verbose = 0;
 static gint o_quiet = 0;
 static gint o_version = 0;
 static gint o_socket = 0;
+static gboolean o_histogram = 0;
 static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
 static gint o_ptp_mode = FALSE;
 
 #define HISTOGRAM_VALUES 1000
 struct histogram {
-	gint32 array[HISTOGRAM_VALUES];
-	gint32 outliers;
+    gint32 array[HISTOGRAM_VALUES];
+    gint32 outliers;
 };
 
 struct histogram histogram;
@@ -209,32 +211,31 @@ static char *dump_json_test_packet(struct test_packet_result *result)
 
 static int update_histogram(struct test_packet_result *result)
 {
-	(void)result;
-	int latency_usec = result->diff_ts.tv_nsec/1000;
+    int latency_usec = result->diff_ts.tv_nsec/1000;
 
-	if (latency_usec < HISTOGRAM_VALUES) {
-		histogram.array[latency_usec]++;
-	} else {
-		histogram.outliers++;
-	}
+    if (latency_usec < HISTOGRAM_VALUES) {
+        histogram.array[latency_usec]++;
+    } else {
+        histogram.outliers++;
+    }
 
-	return 0;
+    return 0;
 }
 
 static char *dump_json_histogram(void)
 {
     json_t *j;
     char *str;
-	/* hack ... jansson seems not to support data-arrays */
-	GString *a;
-	int i;
-	gchar *o;
+    /* hack ... jansson seems not to support data-arrays */
+    GString *a;
+    int i;
+    gchar *o;
 
-	a = g_string_new(NULL);
-	for (i = 0; i < HISTOGRAM_VALUES; i++) {
-		g_string_append_printf(a, "%d, ", histogram.array[i]);
-	}
-	o = g_string_free(a, FALSE);
+    a = g_string_new(NULL);
+    for (i = 0; i < HISTOGRAM_VALUES; i++) {
+        g_string_append_printf(a, "%d, ", histogram.array[i]);
+    }
+    o = g_string_free(a, FALSE);
 
     j = json_pack("{sis[s]}",
                   "outliers", histogram.outliers,
@@ -243,7 +244,7 @@ static char *dump_json_histogram(void)
 
     str = json_dumps(j, JSON_COMPACT);
     json_decref(j);
-	g_free(o);
+    g_free(o);
 
     return str;
 }
@@ -302,7 +303,7 @@ static int handle_status_socket(int fd_socket, char *result_str)
         }
     }
 
-	if (result_str == NULL) {
+    if (result_str == NULL) {
         return -1;
     }
 
@@ -335,9 +336,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     int rc = 0;
     struct timespec rx_ts;
     struct test_packet_result result;
-
     char *result_str = NULL;
-    char *histogram_str = NULL;
 
     memset(&rx_ts, 0, sizeof(rx_ts));
     get_hw_timestamp(msg, &rx_ts);
@@ -347,10 +346,11 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         switch (o_capture_ethertype) {
         case TEST_PACKET_ETHER_TYPE:
             handle_test_packet(msg, &result);
-			update_histogram(&result);
-
             result_str = dump_json_test_packet(&result);
-			histogram_str = dump_json_histogram();
+
+            if (o_histogram) {
+                update_histogram(&result);
+            }
             break;
         default:
             printf("tbd ... other packet\n");
@@ -361,8 +361,12 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     if (o_verbose && result_str) {
         printf("%s\n", result_str);
     }
-    if (o_verbose && histogram_str) {
+
+    if (o_verbose) {
+        char *histogram_str = NULL;
+        histogram_str = dump_json_histogram();
         printf("%s\n", histogram_str);
+        free(histogram_str);
     }
 
     if (fd_socket != -1 && result_str) {
@@ -371,9 +375,6 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 
     if (result_str != NULL) {
         free(result_str);
-    }
-    if (histogram_str != NULL) {
-        free(histogram_str);
     }
 
     return rc;
@@ -517,6 +518,8 @@ static GOptionEntry entries[] = {
             &o_quiet, "Suppress error messages", NULL },
     { "socket",    's', 0, G_OPTION_ARG_NONE,
             &o_socket, "Write packet results to socket", NULL },
+    { "histogram",    'h', 0, G_OPTION_ARG_NONE,
+            &o_histogram, "Write packet histogram in JSON format", NULL },
     { "ethertype", 'e', 0, G_OPTION_ARG_INT,
             &o_capture_ethertype, "Set ethertype to filter"
             "(Default is 0x0808, ETH_P_ALL is 0x3)", NULL },
@@ -552,6 +555,33 @@ gint parse_command_line_options(gint *argc, char **argv)
     return 0;
 }
 
+static void signal_handler(int signal)
+{
+    switch (signal) {
+    case SIGINT:
+    case SIGTERM:
+        if (o_histogram) {
+            char *histogram_str = NULL;
+            histogram_str = dump_json_histogram();
+            printf("%s\n", histogram_str);
+            free(histogram_str);
+        }
+        exit(1);
+    break;
+    case SIGUSR1:
+        printf("SIGUSR1\n");
+        if (o_histogram) {
+            char *histogram_str = NULL;
+            histogram_str = dump_json_histogram();
+            printf("%s\n", histogram_str);
+            free(histogram_str);
+        }
+    break;
+    default:
+    break;
+    }
+}
+
 
 int main(int argc, char **argv)
 {
@@ -560,6 +590,7 @@ int main(int argc, char **argv)
     int fd_socket = -1;
     struct ether_addr *src_eth_addr = NULL;
     char *ifname = NULL;
+    sigset_t sigset;
 
     parse_command_line_options(&argc, argv);
 
@@ -595,6 +626,13 @@ int main(int argc, char **argv)
     if (o_socket) {
         fd_socket = open_server_socket(socket_path);
     }
+
+    sigemptyset(&sigset);
+//	sigaddset(&sigset, SIGALARM);
+
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+    signal(SIGUSR1, signal_handler);
 
     while (1) {
         struct msghdr msg;

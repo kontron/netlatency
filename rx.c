@@ -53,6 +53,14 @@ static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
 static gint o_ptp_mode = FALSE;
 
+#define HISTOGRAM_VALUES 1000
+struct histogram {
+	gint32 array[HISTOGRAM_VALUES];
+	gint32 outliers;
+};
+
+struct histogram histogram;
+
 static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 {
     struct cmsghdr *cmsg;
@@ -177,7 +185,6 @@ static int handle_test_packet(struct msghdr *msg,
     return 0;
 }
 
-
 static char *dump_json_test_packet(struct test_packet_result *result)
 {
     json_t *j;
@@ -196,6 +203,47 @@ static char *dump_json_test_packet(struct test_packet_result *result)
 
     str = json_dumps(j, JSON_COMPACT);
     json_decref(j);
+
+    return str;
+}
+
+static int update_histogram(struct test_packet_result *result)
+{
+	(void)result;
+	int latency_usec = result->diff_ts.tv_nsec/1000;
+
+	if (latency_usec < HISTOGRAM_VALUES) {
+		histogram.array[latency_usec]++;
+	} else {
+		histogram.outliers++;
+	}
+
+	return 0;
+}
+
+static char *dump_json_histogram(void)
+{
+    json_t *j;
+    char *str;
+	/* hack ... jansson seems not to support data-arrays */
+	GString *a;
+	int i;
+	gchar *o;
+
+	a = g_string_new(NULL);
+	for (i = 0; i < HISTOGRAM_VALUES; i++) {
+		g_string_append_printf(a, "%d, ", histogram.array[i]);
+	}
+	o = g_string_free(a, FALSE);
+
+    j = json_pack("{sis[s]}",
+                  "outliers", histogram.outliers,
+                  "data", o
+    );
+
+    str = json_dumps(j, JSON_COMPACT);
+    json_decref(j);
+	g_free(o);
 
     return str;
 }
@@ -289,6 +337,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     struct test_packet_result result;
 
     char *result_str = NULL;
+    char *histogram_str = NULL;
 
     memset(&rx_ts, 0, sizeof(rx_ts));
     get_hw_timestamp(msg, &rx_ts);
@@ -298,7 +347,10 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         switch (o_capture_ethertype) {
         case TEST_PACKET_ETHER_TYPE:
             handle_test_packet(msg, &result);
+			update_histogram(&result);
+
             result_str = dump_json_test_packet(&result);
+			histogram_str = dump_json_histogram();
             break;
         default:
             printf("tbd ... other packet\n");
@@ -309,6 +361,9 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     if (o_verbose && result_str) {
         printf("%s\n", result_str);
     }
+    if (o_verbose && histogram_str) {
+        printf("%s\n", histogram_str);
+    }
 
     if (fd_socket != -1 && result_str) {
         rc = handle_status_socket(fd_socket, result_str);
@@ -316,6 +371,9 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 
     if (result_str != NULL) {
         free(result_str);
+    }
+    if (histogram_str != NULL) {
+        free(histogram_str);
     }
 
     return rc;

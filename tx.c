@@ -265,48 +265,6 @@ void busy_poll(void)
 
 }
 
-void print_packet_info(struct timespec *ts, struct stats *stats)
-{
-
-#if 0
-    json_t *j;
-    gchar *str;
-    j = json_pack("{sisisisisi}",
-                  "sequence", tp->seq,
-                  "tx_ts_sec", (long long)ts->tv_sec,
-                  "tx_ts_nsec", (ts->tv_nsec / 1000),
-                  "tx_ts_diff_sec", diff_desired.tv_sec,
-                  "tx_ts_diff_nsec", diff_desired.tv_nsec
-    );
-
-    str = json_dumps(j, JSON_COMPACT);
-    json_decref(j);
-    printf("%s\n", str);
-    free(str);
-#else
-    gchar str[1024];
-
-    memset(str, 0, sizeof(str));
-    snprintf(str, sizeof(str),
-            "SEQ: %-d; TS(l): %lld.%.06ld; TS(tx): %lld.%.06ld; "
-            "DIFF: %lld.%.06ld; MEAN: %lld.%.06ld; MAX: %lld.%.06ld;\n",
-            tp->seq,
-            (long long)ts->tv_sec,
-            (ts->tv_nsec / 1000),
-            0ULL,
-            0UL,
-            (long long)stats->diff.tv_sec,
-            (stats->diff.tv_nsec / 1000),
-            (long long)stats->mean.tv_sec,
-            (stats->mean.tv_nsec / 1000),
-            (long long)stats->max.tv_sec,
-            (stats->max.tv_nsec / 1000)
-    );
-
-    printf("%s", str);
-#endif
-}
-
 void signal_handler(int signal)
 {
     switch (signal) {
@@ -440,10 +398,6 @@ int main(int argc, char **argv)
             memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
 
             eth_send(eth, buf, o_packet_size);
-
-//            if (o_verbose) {
-//                print_packet_info(&ts, &stats);
-//            }
 
 
             struct timespec diff;

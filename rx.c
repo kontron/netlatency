@@ -50,7 +50,7 @@ static gint o_verbose = 0;
 static gint o_quiet = 0;
 static gint o_version = 0;
 static gint o_socket = 0;
-static gboolean o_histogram = 0;
+static gint o_histogram = 0;
 static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
 static gint o_ptp_mode = FALSE;
@@ -59,9 +59,13 @@ static gint o_ptp_mode = FALSE;
 struct histogram {
     gint32 array[HISTOGRAM_VALUES_MAX];
     gint32 outliers;
+    gint32 min;
+    gint32 max;
+
+    gint32 count;
 };
 
-struct histogram histogram;
+struct histogram histogram = {0};
 
 static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 {
@@ -216,11 +220,20 @@ static int update_histogram(struct test_packet_result *result)
 {
     int latency_usec = result->diff_ts.tv_nsec/1000;
 
-    if (latency_usec < HISTOGRAM_VALUES_MAX) {
+    if (latency_usec > histogram.max || histogram.max == 0) {
+        histogram.max = latency_usec;
+    }
+    if (latency_usec < histogram.min || histogram.min == 0) {
+        histogram.min = latency_usec;
+    }
+
+    if (latency_usec < o_histogram) {
         histogram.array[latency_usec]++;
     } else {
         histogram.outliers++;
     }
+
+    histogram.count++;
 
     return 0;
 }
@@ -233,14 +246,17 @@ static char *dump_json_histogram(void)
 
     a = json_array();
 
-    for (i = 0; i < HISTOGRAM_VALUES_MAX; i++) {
+    for (i = 0; i < o_histogram; i++) {
         json_t *integer;
         integer = json_integer(histogram.array[i]);
         json_array_append(a, integer);
         json_decref(integer);
     }
 
-    j = json_pack("{siso?}",
+    j = json_pack("{sisisisiso?}",
+                  "count", histogram.count,
+                  "min", histogram.min,
+                  "max", histogram.max,
                   "outliers", histogram.outliers,
                   "histogram", a
     );
@@ -513,6 +529,31 @@ static gboolean parse_rx_filter_cb(const gchar *key, const gchar *value,
     return FALSE;
 }
 
+
+static gboolean parse_histogram_cb(const char *key, const char *value,
+        gpointer user_data, GError **error)
+{
+    gchar *endPtr;
+    (void)key;
+    (void)user_data;
+    (void)error;
+
+
+    if (value == NULL) {
+        o_histogram = HISTOGRAM_VALUES_MAX;
+    } else {
+        o_histogram = g_ascii_strtoull(value, &endPtr, 10);
+        if (o_histogram > HISTOGRAM_VALUES_MAX) {
+            o_histogram = HISTOGRAM_VALUES_MAX;
+        }
+    }
+
+    printf("value=%s histogram=%d\n", value, o_histogram);
+
+    return TRUE;
+}
+
+
 static GOptionEntry entries[] = {
     { "verbose",   'v', 0, G_OPTION_ARG_NONE,
             &o_verbose, "Be verbose", NULL },
@@ -520,8 +561,8 @@ static GOptionEntry entries[] = {
             &o_quiet, "Suppress error messages", NULL },
     { "socket",    's', 0, G_OPTION_ARG_NONE,
             &o_socket, "Write packet results to socket", NULL },
-    { "histogram",    'h', 0, G_OPTION_ARG_NONE,
-            &o_histogram, "Write packet histogram in JSON format", NULL },
+    { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG , G_OPTION_ARG_CALLBACK,
+            parse_histogram_cb, "Write packet histogram in JSON format", NULL},
     { "ethertype", 'e', 0, G_OPTION_ARG_INT,
             &o_capture_ethertype, "Set ethertype to filter"
             "(Default is 0x0808, ETH_P_ALL is 0x3)", NULL },

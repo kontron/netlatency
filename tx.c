@@ -311,7 +311,6 @@ int main(int argc, char **argv)
     int rv = 0;
     eth_t *eth;
     struct ifreq ifopts;
-    struct timespec ts;
 
     parse_command_line_options(&argc, argv);
 
@@ -376,6 +375,8 @@ int main(int argc, char **argv)
     tp->hdr.ether_type = TEST_PACKET_ETHER_TYPE;
 
     if (o_interval_ms) {
+        struct timespec now;
+        struct timespec next;
         struct timespec sleep_ts;
         struct timespec interval;
         struct stats stats;
@@ -398,16 +399,17 @@ int main(int argc, char **argv)
             }
 
             /* sync to desired millisecond start */
-            wait_for_next_timeslice(&interval, &tp->ts_tx_target);
+            wait_for_next_timeslice(&interval, &next);
 
             tp->interval_us = o_interval_ms * 1000;
             tp->packet_size = o_packet_size;
 
-            clock_gettime(CLOCK_REALTIME, &ts);
-            calc_stats(&ts, &stats, &interval);
+            clock_gettime(CLOCK_REALTIME, &now);
+//            calc_stats(&now, &stats, &interval);
 
             /* update new timestamp in packet */
-            memcpy(&tp->ts_tx, &ts, sizeof(struct timespec));
+            memcpy(&tp->ts_tx, &now, sizeof(struct timespec));
+            memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
 
             eth_send(eth, buf, o_packet_size);
 
@@ -417,16 +419,16 @@ int main(int argc, char **argv)
 
 
             struct timespec diff_desired;
-            timespec_diff(&ts, &tp->ts_tx_target, &diff_desired);
+            timespec_diff(&now, &tp->ts_tx_target, &diff_desired);
 
             if (o_verbose) {
                 json_t *j;
                 char *str;
                 j = json_pack("{sisisisisi}",
                               "sequence", tp->seq,
-                              "tx_ts_sec", (guint64)ts.tv_sec,
-                              "tx_ts_nsec", (ts.tv_nsec / 1000),
-                              "tx_ts_diff_sec", diff_desired.tv_sec,
+                              "tx_ts_sec", (long long)now.tv_sec,
+                              "tx_ts_nsec", now.tv_nsec,
+                              "tx_ts_diff_sec", (long long) diff_desired.tv_sec,
                               "tx_ts_diff_nsec", diff_desired.tv_nsec
                 );
 
@@ -438,19 +440,6 @@ int main(int argc, char **argv)
 
             tp->seq++;
         }
-
-    } else {
-        clock_gettime(CLOCK_REALTIME, &ts);
-        memcpy(&tp->ts_tx, &ts, sizeof(struct timespec));
-
-        eth_send(eth, buf, o_packet_size);
-
-        printf("%lld.%.3ld.%3ld.%3ld\n",
-            (long long)ts.tv_sec,
-            ts.tv_nsec / 1000000,
-            (ts.tv_nsec / 1000)%1000,
-            ts.tv_nsec %1000
-        );
     }
 
     return rv;

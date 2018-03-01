@@ -55,9 +55,9 @@ static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
 static gint o_ptp_mode = FALSE;
 
-#define HISTOGRAM_VALUES 1000
+#define HISTOGRAM_VALUES_MAX 1000
 struct histogram {
-    gint32 array[HISTOGRAM_VALUES];
+    gint32 array[HISTOGRAM_VALUES_MAX];
     gint32 outliers;
 };
 
@@ -195,7 +195,8 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     j = json_pack("{sisisisisisisisb}",
                   "sequence", result->seq,
                   "delay_us", (result->diff_ts.tv_nsec/1000),
-                  "delay_ns", (result->diff_ts.tv_nsec),
+                  "delay_nsec", result->diff_ts.tv_nsec,
+                  "delay_sec", result->diff_ts.tv_sec,
                   "abs_ns", result->abs_ns,
                   "interval_us", result->interval_us,
                   "packet_size", result->packet_size,
@@ -213,7 +214,7 @@ static int update_histogram(struct test_packet_result *result)
 {
     int latency_usec = result->diff_ts.tv_nsec/1000;
 
-    if (latency_usec < HISTOGRAM_VALUES) {
+    if (latency_usec < HISTOGRAM_VALUES_MAX) {
         histogram.array[latency_usec]++;
     } else {
         histogram.outliers++;
@@ -232,7 +233,7 @@ static char *dump_json_histogram(void)
     gchar *o;
 
     a = g_string_new(NULL);
-    for (i = 0; i < HISTOGRAM_VALUES; i++) {
+    for (i = 0; i < HISTOGRAM_VALUES_MAX; i++) {
         g_string_append_printf(a, "%d, ", histogram.array[i]);
     }
     o = g_string_free(a, FALSE);
@@ -362,12 +363,12 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         printf("%s\n", result_str);
     }
 
-    if (o_verbose) {
-        char *histogram_str = NULL;
-        histogram_str = dump_json_histogram();
-        printf("%s\n", histogram_str);
-        free(histogram_str);
-    }
+//    if (o_verbose) {
+//        char *histogram_str = NULL;
+//        histogram_str = dump_json_histogram();
+//        printf("%s\n", histogram_str);
+//        free(histogram_str);
+//    }
 
     if (fd_socket != -1 && result_str) {
         rc = handle_status_socket(fd_socket, result_str);

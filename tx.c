@@ -40,6 +40,7 @@
 #include <netinet/in.h>
 #include <netpacket/packet.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -306,11 +307,30 @@ void print_packet_info(struct timespec *ts, struct stats *stats)
 #endif
 }
 
+void signal_handler(int signal)
+{
+    switch (signal) {
+    case SIGINT:
+    case SIGTERM:
+        if (o_memlock) {
+            munlockall();
+        }
+        exit(1);
+    break;
+    case SIGUSR1:
+    break;
+    default:
+    break;
+    }
+
+}
+
 int main(int argc, char **argv)
 {
     int rv = 0;
     eth_t *eth;
     struct ifreq ifopts;
+    sigset_t sigset;
 
     parse_command_line_options(&argc, argv);
 
@@ -374,6 +394,14 @@ int main(int argc, char **argv)
     /* ethertype */
     tp->hdr.ether_type = TEST_PACKET_ETHER_TYPE;
 
+
+    sigemptyset(&sigset);
+//	sigaddset(&sigset, SIGALARM);
+
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+    signal(SIGUSR1, signal_handler);
+
     if (o_interval_ms) {
         struct timespec now;
         struct timespec next;
@@ -381,8 +409,8 @@ int main(int argc, char **argv)
         struct timespec interval;
         struct stats stats;
 
-		interval.tv_sec = 0;
-		interval.tv_nsec = o_interval_ms * 1000000;
+        interval.tv_sec = 0;
+        interval.tv_nsec = o_interval_ms * 1000000;
 
         memset(&stats, 0, sizeof(struct stats));
 
@@ -418,18 +446,20 @@ int main(int argc, char **argv)
 //            }
 
 
-            struct timespec diff_desired;
-            timespec_diff(&now, &tp->ts_tx_target, &diff_desired);
+            struct timespec diff;
+            timespec_diff(&now, &next, &diff);
 
             if (o_verbose) {
                 json_t *j;
                 char *str;
-                j = json_pack("{sisisisisi}",
+                j = json_pack("{sisisisisisisi}",
                               "sequence", tp->seq,
+                              "tx_next_sec", (long long)next.tv_sec,
+                              "tx_next_nsec", next.tv_nsec,
                               "tx_ts_sec", (long long)now.tv_sec,
                               "tx_ts_nsec", now.tv_nsec,
-                              "tx_ts_diff_sec", (long long) diff_desired.tv_sec,
-                              "tx_ts_diff_nsec", diff_desired.tv_nsec
+                              "tx_ts_diff_sec", (long long) diff.tv_sec,
+                              "tx_ts_diff_nsec", diff.tv_nsec
                 );
 
                 str = json_dumps(j, JSON_COMPACT);

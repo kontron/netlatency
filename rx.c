@@ -71,6 +71,8 @@ static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
         struct timespec ts[3];
     };
 
+    memset(ts, 0, sizeof(struct timespec));
+
     for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
         struct scm_timestamping* scm_ts = NULL;
 
@@ -225,29 +227,28 @@ static int update_histogram(struct test_packet_result *result)
 
 static char *dump_json_histogram(void)
 {
-    json_t *j;
-    char *str;
-    /* hack ... jansson seems not to support data-arrays */
-    GString *a;
+    json_t *j, *a;
+    char *s;
     int i;
-    gchar *o;
 
-    a = g_string_new(NULL);
+    a = json_array();
+
     for (i = 0; i < HISTOGRAM_VALUES_MAX; i++) {
-        g_string_append_printf(a, "%d, ", histogram.array[i]);
+        json_t *integer;
+        integer = json_integer(histogram.array[i]);
+        json_array_append(a, integer);
+        json_decref(integer);
     }
-    o = g_string_free(a, FALSE);
 
-    j = json_pack("{sis[s]}",
+    j = json_pack("{siso?}",
                   "outliers", histogram.outliers,
-                  "data", o
+                  "histogram", a
     );
 
-    str = json_dumps(j, JSON_COMPACT);
+    s = json_dumps(j, JSON_COMPACT);
     json_decref(j);
-    g_free(o);
 
-    return str;
+    return s;
 }
 
 static int handle_status_socket(int fd_socket, char *result_str)

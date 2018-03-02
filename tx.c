@@ -107,7 +107,7 @@ eth_t *eth_open(const char *device)
     struct sockaddr_ll sll;
 
     if ((e = calloc(1, sizeof(*e))) == NULL) {
-        return NULL
+        return NULL;
     }
 
     if ((e->fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {

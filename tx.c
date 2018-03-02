@@ -58,7 +58,6 @@
 
 #include <jansson.h>
 
-#include "config_control.h"
 #include "data.h"
 #include "timer.h"
 
@@ -70,7 +69,6 @@ static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_sched_prio = 99;
 static int o_queue_prio = -1;
 static gint o_memlock = 1;
-static gint o_config_control_port = 0;
 static gint o_histogram = 0;
 static gboolean o_thread = 0;
 
@@ -102,7 +100,6 @@ struct histogram histogram = {
 */
 gint o_interval_ms = 1000;
 gint o_packet_size = -1;
-gboolean o_pause_loop = FALSE;
 
 static uint8_t buf[2048];
 struct ether_testpacket *tp = (struct ether_testpacket*)buf;
@@ -437,11 +434,6 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    /* start configuration control task */
-    if (o_config_control_port) {
-        start_config_control();
-    }
-
     fd = eth_open(argv[1]);
     if (fd < 0) {
         perror("eth_open");
@@ -527,12 +519,6 @@ int main(int argc, char **argv)
         busy_poll();
 
         while (!do_shutdown) {
-
-            if (o_pause_loop) {
-                sleep(1);
-                continue;
-            }
-
             /* sync to desired millisecond start */
             wait_for_next_timeslice(&interval, &next);
 

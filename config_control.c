@@ -43,11 +43,6 @@ static void set_config_control(gchar *pCmd)
         interval = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
         o_interval_ms = interval;
 
-    } else if (strcmp (pCmdEntry[0], "state") == 0) {
-        guint64 enable;
-        enable = g_ascii_strtoull(pCmdEntry[1], NULL, 0);
-        o_pause_loop = enable ? FALSE : TRUE;
-
     } else if (strcmp (pCmdEntry[0], "size") == 0) {
         /* set packet size */
         iValue = atoi(pCmdEntry[1]);

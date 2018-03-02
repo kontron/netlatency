@@ -133,7 +133,7 @@ int eth_open(const char *device)
 
 static int update_histogram(struct timespec *diff)
 {
-    int latency_usec = abs(diff->tv_nsec/1000);
+    int latency_usec = labs(diff->tv_nsec/1000);
 
     if (latency_usec > histogram.max || histogram.max == 0) {
         histogram.max = latency_usec;

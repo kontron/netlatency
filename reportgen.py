@@ -19,11 +19,14 @@ def main():
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     ax.grid(True)
-    ax.set_xlabel('latency')
+    ax.set_xlabel('latency ($\mu$s)')
     ax.set_ylabel('count')
-    ax.semilogy(x, y)
+#    ax.semilogy(x, y)
+    ax.bar(x, y)
+    plt.yscale('log')
 
-    plt.title('counts: %s, min: %s, max: %s oultiers: %s' % (counts, min_val, max_val, outliers))
+    plt.title('counts: %s, min: %s $\mu$s, max: %s $\mu$s oultiers: %s' \
+            % (counts, min_val, max_val, outliers))
     plt.show()
 
 if __name__ == '__main__':

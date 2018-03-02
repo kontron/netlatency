@@ -450,7 +450,8 @@ int main(int argc, char **argv)
 
     /* Set skb priority */
     if (o_queue_prio > 0) {
-        setsockopt(fd, SOL_SOCKET, SO_PRIORITY, &o_queue_prio, sizeof(o_queue_prio));
+        setsockopt(fd, SOL_SOCKET, SO_PRIORITY, &o_queue_prio,
+                   sizeof(o_queue_prio));
     }
 
 
@@ -514,7 +515,6 @@ int main(int argc, char **argv)
     } else {
         struct timespec now;
         struct timespec next;
-        struct timespec sleep_ts;
         struct timespec interval;
         struct timespec diff;
 
@@ -522,8 +522,6 @@ int main(int argc, char **argv)
 
         interval.tv_sec = 0;
         interval.tv_nsec = o_interval_ms * 1000000;
-
-        clock_gettime(CLOCK_MONOTONIC, &sleep_ts);
 
         /* wait for millisecond == 0 */
         busy_poll();

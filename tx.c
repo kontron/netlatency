@@ -83,57 +83,34 @@ gboolean o_pause_loop = FALSE;
 static uint8_t buf[2048];
 struct ether_testpacket *tp = (struct ether_testpacket*)buf;
 
-struct eth_handle {
+
+int eth_open(const char *device)
+{
     int fd;
-    struct ifreq ifr;
-};
-
-typedef struct eth_handle eth_t;
-
-eth_t *eth_close(eth_t *e)
-{
-    if (e != NULL) {
-        if (e->fd >= 0) {
-            close(e->fd);
-        }
-        free(e);
-    }
-    return NULL;
-}
-
-eth_t *eth_open(const char *device)
-{
-    eth_t *e;
     struct sockaddr_ll sll;
+    struct ifreq ifr;
 
-    if ((e = calloc(1, sizeof(*e))) == NULL) {
-        return NULL;
+    if ((fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
+        close(fd);
+        return -1;
     }
 
-    if ((e->fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
-        return eth_close(e);
-    }
-
-    strncpy(e->ifr.ifr_name, device, sizeof(e->ifr.ifr_name));
+    strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
 
     /* terminate string with 0 */
-    e->ifr.ifr_name[sizeof(e->ifr.ifr_name)-1] = 0;
+    ifr.ifr_name[sizeof(ifr.ifr_name)-1] = 0;
 
-    if (ioctl(e->fd, SIOCGIFINDEX, &e->ifr) < 0) {
-        return eth_close(e);
+    if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
+        close(fd);
+        return -1;
     }
 
     sll.sll_family = AF_PACKET;
-    sll.sll_ifindex = e->ifr.ifr_ifindex;
+    sll.sll_ifindex = ifr.ifr_ifindex;
 
-    bind(e->fd, (struct sockaddr *) &sll, sizeof(sll));
+    bind(fd, (struct sockaddr *) &sll, sizeof(sll));
 
-    return e;
-}
-
-ssize_t eth_send(eth_t *e, const void *buf, size_t len)
-{
-    return write(e->fd, buf, len);
+    return fd;
 }
 
 void usage(void)
@@ -285,7 +262,7 @@ void signal_handler(int signal)
 int main(int argc, char **argv)
 {
     int rv = 0;
-    eth_t *eth;
+    int fd;
     struct ifreq ifopts;
     sigset_t sigset;
 
@@ -308,15 +285,15 @@ int main(int argc, char **argv)
         start_config_control();
     }
 
-    eth = eth_open(argv[1]);
-    if (eth == NULL) {
+    fd = eth_open(argv[1]);
+    if (fd < 0) {
         perror("eth_open");
         return -1;
     }
 
     /* Set skb priority */
     if (o_queue_prio > 0) {
-        setsockopt(eth->fd, SOL_SOCKET, SO_PRIORITY, &o_queue_prio, sizeof(o_queue_prio));
+        setsockopt(fd, SOL_SOCKET, SO_PRIORITY, &o_queue_prio, sizeof(o_queue_prio));
     }
 
 
@@ -331,7 +308,7 @@ int main(int argc, char **argv)
     {
         memset(&ifopts, 0, sizeof(struct ifreq));
         strncpy(ifopts.ifr_name, argv[1], sizeof(ifopts.ifr_name));
-        if (ioctl(eth->fd, SIOCGIFHWADDR, &ifopts) < 0) {
+        if (ioctl(fd, SIOCGIFHWADDR, &ifopts) < 0) {
             perror("ioctl");
             return -1;
         }
@@ -392,7 +369,7 @@ int main(int argc, char **argv)
             memcpy(&tp->ts_tx, &now, sizeof(struct timespec));
             memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
 
-            eth_send(eth, buf, o_packet_size);
+            write(fd, buf, o_packet_size);
 
             if (o_verbose) {
                 json_t *j;

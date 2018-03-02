@@ -31,6 +31,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -66,11 +67,15 @@ static gchar *help_description = NULL;
 static gint o_verbose = 0;
 static gint o_version = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
-static gint o_sched_prio = -1;
+static gint o_sched_prio = 99;
 static int o_queue_prio = -1;
 static gint o_memlock = 1;
 static gint o_config_control_port = 0;
 static gint o_histogram = 0;
+static gboolean o_thread = 0;
+
+
+static gint do_shutdown = 0;
 
 #define HISTOGRAM_VALUES_MAX 1000
 struct histogram {
@@ -95,7 +100,7 @@ struct histogram histogram = {
     the configuration can be set by config thread .. use threadsafe access
     https://developer.gnome.org/glib/2.54/glib-Atomic-Operations.html
 */
-gint o_interval_ms = 0;
+gint o_interval_ms = 1000;
 gint o_packet_size = -1;
 gboolean o_pause_loop = FALSE;
 
@@ -185,11 +190,13 @@ static GOptionEntry entries[] = {
     { "destination", 'd', 0, G_OPTION_ARG_STRING,
             &o_destination_mac, "Destination MAC address", NULL },
     { "interval",    'i', 0, G_OPTION_ARG_INT,
-            &o_interval_ms, "Interval in milli seconds", NULL },
+            &o_interval_ms, "Interval in milli seconds (default is 1000)", NULL },
     { "prio",        'p', 0, G_OPTION_ARG_INT,
-            &o_sched_prio, "Set scheduler priority", NULL },
+            &o_sched_prio, "Set scheduler priority (default is 99)", NULL },
     { "queue-prio",  'Q', 0, G_OPTION_ARG_INT,
             &o_queue_prio, "Set skb priority", NULL },
+    { "thread",     't', 0, G_OPTION_ARG_NONE,
+            &o_thread, "Run loop in thread", NULL },
     { "memlock",     'm', 0, G_OPTION_ARG_INT,
             &o_memlock, "Configure memlock (default is 1)", NULL },
     { "padding",     'P', 0, G_OPTION_ARG_INT,
@@ -343,7 +350,7 @@ void signal_handler(int signal)
         if (o_memlock) {
             munlockall();
         }
-        exit(1);
+        do_shutdown++;
     break;
     case SIGUSR1:
         if (o_histogram) {
@@ -357,6 +364,56 @@ void signal_handler(int signal)
     break;
     }
 
+}
+
+struct thread_param {
+    int fd;
+};
+
+struct thread_param thread_param;
+
+static void *timer_thread(void *params)
+{
+    struct thread_param *parm = params;
+    struct sched_param schedp;
+    struct timespec now;
+    struct timespec next;
+    struct timespec interval;
+    struct timespec diff;
+
+
+    memset(&schedp, 0, sizeof(schedp));
+    schedp.sched_priority = o_sched_prio;
+    if (sched_setscheduler(0, SCHED_FIFO, &schedp)) {
+        perror("failed to set scheduler policy");
+    }
+
+    interval.tv_sec = 0;
+    interval.tv_nsec = o_interval_ms * 1000000;
+
+    while (!do_shutdown) {
+
+        tp->interval_us = o_interval_ms * 1000;
+        tp->packet_size = o_packet_size;
+
+        wait_for_next_timeslice(&interval, &next);
+
+        /* update new timestamp in packet */
+        clock_gettime(CLOCK_REALTIME, &now);
+        memcpy(&tp->ts_tx, &now, sizeof(struct timespec));
+        memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
+
+        write(parm->fd, buf, o_packet_size);
+
+        /* calc deviation from next expected timeslot */
+        timespec_diff(&now, &next, &diff);
+
+        if (o_histogram) {
+            update_histogram(&diff);
+        }
+    }
+
+    return NULL;
 }
 
 int main(int argc, char **argv)
@@ -397,7 +454,6 @@ int main(int argc, char **argv)
     }
 
 
-    config_thread();
 
     /* use the /dev/cpu_dma_latency trick if it's there */
     set_latency_target(latency_target_value);
@@ -437,11 +493,32 @@ int main(int argc, char **argv)
     signal(SIGUSR1, signal_handler);
 
     if (o_interval_ms) {
+        pthread_t thread;
+        pthread_attr_t attr;
+
+        rv = pthread_attr_init(&attr);
+        thread_param.fd = fd;
+
+        rv = pthread_create(&thread, &attr, timer_thread, &thread_param);
+
+        while (!do_shutdown) {
+            usleep(10000);
+
+            if (do_shutdown) {
+                break;
+            }
+        }
+
+        pthread_join(thread, NULL);
+
+    } else {
         struct timespec now;
         struct timespec next;
         struct timespec sleep_ts;
         struct timespec interval;
         struct timespec diff;
+
+        config_thread();
 
         interval.tv_sec = 0;
         interval.tv_nsec = o_interval_ms * 1000000;
@@ -451,7 +528,7 @@ int main(int argc, char **argv)
         /* wait for millisecond == 0 */
         busy_poll();
 
-        while (1) {
+        while (!do_shutdown) {
 
             if (o_pause_loop) {
                 sleep(1);

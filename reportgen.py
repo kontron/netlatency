@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 
+import sys
 import json
 import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
-    f = open('/tmp/out-tx')
+    f = open(sys.argv[1])
     j = json.load(f)
 
     max_val = j['max']
     min_val = j['min']
+    counts = j['count']
     outliers = j['outliers']
     y = j['histogram']
     x = range(0, len(j['histogram']))
@@ -21,7 +23,7 @@ def main():
     ax.set_ylabel('count')
     ax.semilogy(x, y)
 
-    plt.title('min: %s, max: %s oultiers: %s' % (min_val, max_val, outliers))
+    plt.title('counts: %s, min: %s, max: %s oultiers: %s' % (counts, min_val, max_val, outliers))
     plt.show()
 
 if __name__ == '__main__':

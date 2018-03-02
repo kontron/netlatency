@@ -59,7 +59,6 @@
 
 #include "config_control.h"
 #include "data.h"
-#include "stats.h"
 #include "timer.h"
 
 
@@ -366,12 +365,9 @@ int main(int argc, char **argv)
         struct timespec sleep_ts;
         struct timespec interval;
         struct timespec diff;
-        struct stats stats;
 
         interval.tv_sec = 0;
         interval.tv_nsec = o_interval_ms * 1000000;
-
-        memset(&stats, 0, sizeof(struct stats));
 
         clock_gettime(CLOCK_MONOTONIC, &sleep_ts);
 

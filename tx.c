@@ -365,6 +365,7 @@ int main(int argc, char **argv)
         struct timespec next;
         struct timespec sleep_ts;
         struct timespec interval;
+        struct timespec diff;
         struct stats stats;
 
         interval.tv_sec = 0;
@@ -390,22 +391,19 @@ int main(int argc, char **argv)
             tp->interval_us = o_interval_ms * 1000;
             tp->packet_size = o_packet_size;
 
-            clock_gettime(CLOCK_REALTIME, &now);
-//            calc_stats(&now, &stats, &interval);
-
             /* update new timestamp in packet */
+            clock_gettime(CLOCK_REALTIME, &now);
             memcpy(&tp->ts_tx, &now, sizeof(struct timespec));
             memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
 
             eth_send(eth, buf, o_packet_size);
 
-
-            struct timespec diff;
-            timespec_diff(&now, &next, &diff);
-
             if (o_verbose) {
                 json_t *j;
                 char *str;
+
+                timespec_diff(&now, &next, &diff);
+
                 j = json_pack("{sisisisisisisi}",
                               "sequence", tp->seq,
                               "tx_next_sec", (long long)next.tv_sec,

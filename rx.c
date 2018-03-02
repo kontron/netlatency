@@ -64,7 +64,13 @@ struct histogram {
     gint32 count;
 };
 
-struct histogram histogram = {0};
+struct histogram histogram = {
+    .array = {0},
+    .outliers = 0,
+    .min = 0,
+    .max = 0,
+    .count = 0,
+};
 
 static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 {

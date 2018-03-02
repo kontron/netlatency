@@ -70,6 +70,25 @@ static gint o_sched_prio = -1;
 static int o_queue_prio = -1;
 static gint o_memlock = 1;
 static gint o_config_control_port = 0;
+static gint o_histogram = 0;
+
+#define HISTOGRAM_VALUES_MAX 1000
+struct histogram {
+    gint32 array[HISTOGRAM_VALUES_MAX];
+    gint32 outliers;
+    gint32 min;
+    gint32 max;
+
+    gint32 count;
+};
+
+struct histogram histogram = {
+    .array = {0},
+    .outliers = 0,
+    .min = 0,
+    .max = 0,
+    .count = 0,
+};
 
 /*
     TODO:
@@ -112,9 +131,54 @@ int eth_open(const char *device)
     return fd;
 }
 
+static int update_histogram(struct timespec *diff)
+{
+    int latency_usec = abs(diff->tv_nsec/1000);
+
+    if (latency_usec > histogram.max || histogram.max == 0) {
+        histogram.max = latency_usec;
+    }
+    if (latency_usec < histogram.min || histogram.min == 0) {
+        histogram.min = latency_usec;
+    }
+
+    if (latency_usec < o_histogram) {
+        histogram.array[latency_usec]++;
+    } else {
+        histogram.outliers++;
+    }
+
+    histogram.count++;
+
+    return 0;
+}
+
 void usage(void)
 {
     g_printf("%s", help_description);
+}
+
+static gboolean parse_histogram_cb(const char *key, const char *value,
+        gpointer user_data, GError **error)
+{
+    gchar *endPtr;
+    (void)key;
+    (void)user_data;
+    (void)error;
+
+
+    if (value == NULL) {
+        o_histogram = HISTOGRAM_VALUES_MAX;
+    } else {
+        o_histogram = g_ascii_strtoull(value, &endPtr, 10);
+        if (o_histogram > HISTOGRAM_VALUES_MAX) {
+            o_histogram = HISTOGRAM_VALUES_MAX;
+        }
+    }
+
+    printf("value=%s histogram=%d\n", value, o_histogram);
+
+    return TRUE;
 }
 
 static GOptionEntry entries[] = {
@@ -132,6 +196,8 @@ static GOptionEntry entries[] = {
             &o_packet_size, "Set the packet size", NULL },
     { "verbose",     'v', 0, G_OPTION_ARG_NONE,
             &o_verbose, "Be verbose", NULL },
+    { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG , G_OPTION_ARG_CALLBACK,
+            parse_histogram_cb, "Create histogram data", NULL},
     { "version",     'V', 0, G_OPTION_ARG_NONE,
             &o_version, "Show version inforamtion and exit", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }
@@ -240,6 +306,35 @@ void busy_poll(void)
 
 }
 
+static char *dump_json_histogram(void)
+{
+    json_t *j, *a;
+    char *s;
+    int i;
+
+    a = json_array();
+
+    for (i = 0; i < o_histogram; i++) {
+        json_t *integer;
+        integer = json_integer(histogram.array[i]);
+        json_array_append(a, integer);
+        json_decref(integer);
+    }
+
+    j = json_pack("{sisisisiso?}",
+                  "count", histogram.count,
+                  "min", histogram.min,
+                  "max", histogram.max,
+                  "outliers", histogram.outliers,
+                  "histogram", a
+    );
+
+    s = json_dumps(j, JSON_COMPACT);
+    json_decref(j);
+
+    return s;
+}
+
 void signal_handler(int signal)
 {
     switch (signal) {
@@ -251,6 +346,12 @@ void signal_handler(int signal)
         exit(1);
     break;
     case SIGUSR1:
+        if (o_histogram) {
+            char *histogram_str = NULL;
+            histogram_str = dump_json_histogram();
+            printf("%s\n", histogram_str);
+            free(histogram_str);
+        }
     break;
     default:
     break;
@@ -370,11 +471,17 @@ int main(int argc, char **argv)
 
             write(fd, buf, o_packet_size);
 
+            /* calc deviation from next expected timeslot */
+            timespec_diff(&now, &next, &diff);
+
+            if (o_histogram) {
+                update_histogram(&diff);
+            }
+
             if (o_verbose) {
                 json_t *j;
                 char *str;
 
-                timespec_diff(&now, &next, &diff);
 
                 j = json_pack("{sisisisisisisi}",
                               "sequence", tp->seq,

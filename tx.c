@@ -62,15 +62,15 @@
 #include "timer.h"
 
 
+static gboolean o_thread = 0;
 static gchar *help_description = NULL;
+static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
+static gint o_histogram = 0;
+static gint o_memlock = 1;
+static gint o_sched_prio = 99;
 static gint o_verbose = 0;
 static gint o_version = 0;
-static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
-static gint o_sched_prio = 99;
 static int o_queue_prio = -1;
-static gint o_memlock = 1;
-static gint o_histogram = 0;
-static gboolean o_thread = 0;
 
 
 static gint do_shutdown = 0;
@@ -81,7 +81,6 @@ struct histogram {
     gint32 outliers;
     gint32 min;
     gint32 max;
-
     gint32 count;
 };
 
@@ -185,25 +184,35 @@ static gboolean parse_histogram_cb(const char *key, const char *value,
 
 static GOptionEntry entries[] = {
     { "destination", 'd', 0, G_OPTION_ARG_STRING,
-            &o_destination_mac, "Destination MAC address", NULL },
-    { "interval",    'i', 0, G_OPTION_ARG_INT,
-            &o_interval_ms, "Interval in milli seconds (default is 1000)", NULL },
-    { "prio",        'p', 0, G_OPTION_ARG_INT,
-            &o_sched_prio, "Set scheduler priority (default is 99)", NULL },
-    { "queue-prio",  'Q', 0, G_OPTION_ARG_INT,
-            &o_queue_prio, "Set skb priority", NULL },
-    { "thread",     't', 0, G_OPTION_ARG_NONE,
-            &o_thread, "Run loop in thread", NULL },
-    { "memlock",     'm', 0, G_OPTION_ARG_INT,
-            &o_memlock, "Configure memlock (default is 1)", NULL },
-    { "padding",     'P', 0, G_OPTION_ARG_INT,
-            &o_packet_size, "Set the packet size", NULL },
-    { "verbose",     'v', 0, G_OPTION_ARG_NONE,
-            &o_verbose, "Be verbose", NULL },
+            &o_destination_mac,
+            "Destination MAC address", NULL },
     { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG , G_OPTION_ARG_CALLBACK,
-            parse_histogram_cb, "Create histogram data", NULL},
+            parse_histogram_cb,
+            "Create histogram data", NULL},
+    { "interval",    'i', 0, G_OPTION_ARG_INT,
+            &o_interval_ms,
+            "Interval in milli seconds (default is 1000)", NULL },
+    { "memlock",     'm', 0, G_OPTION_ARG_INT,
+            &o_memlock,
+            "Configure memlock (default is 1)", NULL },
+    { "padding",     'P', 0, G_OPTION_ARG_INT,
+            &o_packet_size,
+            "Set the packet size", NULL },
+    { "prio",        'p', 0, G_OPTION_ARG_INT,
+            &o_sched_prio,
+            "Set scheduler priority (default is 99)", NULL },
+    { "queue-prio",  'Q', 0, G_OPTION_ARG_INT,
+            &o_queue_prio,
+            "Set skb priority", NULL },
+    { "thread",     't', 0, G_OPTION_ARG_NONE,
+            &o_thread,
+            "Run loop in thread", NULL },
+    { "verbose",     'v', 0, G_OPTION_ARG_NONE,
+            &o_verbose,
+            "Be verbose", NULL },
     { "version",     'V', 0, G_OPTION_ARG_NONE,
-            &o_version, "Show version inforamtion and exit", NULL },
+            &o_version,
+            "Show version inforamtion and exit", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }
 };
 

@@ -86,7 +86,6 @@ struct ether_testpacket *tp = (struct ether_testpacket*)buf;
 struct eth_handle {
     int fd;
     struct ifreq ifr;
-    struct sockaddr_ll sll;
 };
 
 typedef struct eth_handle eth_t;
@@ -105,35 +104,36 @@ eth_t *eth_close(eth_t *e)
 eth_t *eth_open(const char *device)
 {
     eth_t *e;
+    struct sockaddr_ll sll;
 
-    if ((e = calloc(1, sizeof(*e))) != NULL) {
-        if ((e->fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
-            return (eth_close(e));
-        }
-
-        strncpy(e->ifr.ifr_name, device, sizeof(e->ifr.ifr_name));
-        /* terminate string with 0 */
-        e->ifr.ifr_name[sizeof(e->ifr.ifr_name)-1] = 0;
-
-        if (ioctl(e->fd, SIOCGIFINDEX, &e->ifr) < 0) {
-            return eth_close(e);
-        }
-
-        e->sll.sll_family = AF_PACKET;
-        e->sll.sll_ifindex = e->ifr.ifr_ifindex;
+    if ((e = calloc(1, sizeof(*e))) == NULL) {
+        return NULL
     }
+
+    if ((e->fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
+        return eth_close(e);
+    }
+
+    strncpy(e->ifr.ifr_name, device, sizeof(e->ifr.ifr_name));
+
+    /* terminate string with 0 */
+    e->ifr.ifr_name[sizeof(e->ifr.ifr_name)-1] = 0;
+
+    if (ioctl(e->fd, SIOCGIFINDEX, &e->ifr) < 0) {
+        return eth_close(e);
+    }
+
+    sll.sll_family = AF_PACKET;
+    sll.sll_ifindex = e->ifr.ifr_ifindex;
+
+    bind(e->fd, (struct sockaddr *) &sll, sizeof(sll));
 
     return e;
 }
 
 ssize_t eth_send(eth_t *e, const void *buf, size_t len)
 {
-    struct ether_header *eth = (struct ether_header *)buf;
-
-    e->sll.sll_protocol = eth->ether_type;
-
-    return (sendto(e->fd, buf, len, 0, (struct sockaddr *)&e->sll,
-            sizeof(e->sll)));
+    return write(e->fd, buf, len);
 }
 
 void usage(void)

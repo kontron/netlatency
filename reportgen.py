@@ -6,7 +6,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
-    f = open(sys.argv[1])
+    if sys.argv[1] == '-':
+        f = sys.stdin
+    else:
+        f = open(sys.argv[1])
+
     j = json.load(f)
 
     max_val = j['max']

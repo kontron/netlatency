@@ -46,6 +46,7 @@
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;
+static gint o_count = 0;
 static gint o_quiet = 0;
 static gint o_version = 0;
 static gint o_socket = 0;
@@ -369,10 +370,7 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         case TEST_PACKET_ETHER_TYPE:
             handle_test_packet(msg, &result);
             result_str = dump_json_test_packet(&result);
-
-            if (o_histogram) {
-                update_histogram(&result);
-            }
+            update_histogram(&result);
             break;
         default:
             printf("tbd ... other packet\n");
@@ -561,6 +559,9 @@ static GOptionEntry entries[] = {
             &o_verbose, "Be verbose", NULL },
     { "quiet",     'q', 0, G_OPTION_ARG_NONE,
             &o_quiet, "Suppress error messages", NULL },
+    { "count",    'c', 0, G_OPTION_ARG_INT,
+            &o_count,
+            "Receive packet count", NULL },
     { "socket",    's', 0, G_OPTION_ARG_NONE,
             &o_socket, "Write packet results to socket", NULL },
     { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG , G_OPTION_ARG_CALLBACK,
@@ -699,6 +700,17 @@ int main(int argc, char **argv)
         if (rc > 0) {
             handle_msg(&msg, fd_socket);
         }
+
+        if (o_count && histogram.count >= o_count) {
+            break;
+        }
+    }
+
+    if (o_histogram) {
+        char *histogram_str = NULL;
+        histogram_str = dump_json_histogram();
+        printf("%s\n", histogram_str);
+        free(histogram_str);
     }
 
     close(fd);

@@ -106,6 +106,7 @@ static void get_timer_before_target(int time_before_ns, struct timespec *now,
 }
 #endif
 
+#if 0
 static inline int a_less_b(const struct timespec *a, const struct timespec *b)
 {
 	if (a->tv_sec == b->tv_sec) {
@@ -115,6 +116,7 @@ static inline int a_less_b(const struct timespec *a, const struct timespec *b)
 	}
 	return 0;
 }
+#endif
 
 #if 0
 static void busy_poll_to_target_time(struct timespec *ts_target)

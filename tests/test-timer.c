@@ -175,6 +175,7 @@ static void test_get_timeval_to_next_slice(void)
 	g_assert_cmpint(next.tv_nsec, ==, 0);
 }
 
+#if 0
 void test_a_less_b(void)
 {
 	struct timespec a;
@@ -222,6 +223,7 @@ void test_a_less_b(void)
 	b.tv_nsec = 0;
 	g_assert_true(a_less_b(&a, &b));
 }
+#endif
 
 #if 0
 void test_get_timer_before_target(void)
@@ -291,8 +293,10 @@ int main(int argc, char** argv)
 	g_test_add_func("/timer/a/valid",
 			test_get_timeval_to_next_slice);
 
+#if 0
 	g_test_add_func("/timer/a_less_b/false",
 			test_a_less_b);
+#endif
 
 #if 0
 	g_test_add_func("/timer/get_time_before_target",

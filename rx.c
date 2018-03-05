@@ -60,7 +60,6 @@ struct histogram {
     gint32 outliers;
     gint32 min;
     gint32 max;
-
     gint32 count;
 };
 

@@ -62,8 +62,9 @@
 #include "timer.h"
 
 
-static gboolean o_thread = 0;
+//static gboolean o_thread = 0;
 static gchar *help_description = NULL;
+static gint o_count = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_histogram = 0;
 static gint o_memlock = 1;
@@ -177,8 +178,6 @@ static gboolean parse_histogram_cb(const char *key, const char *value,
         }
     }
 
-    printf("value=%s histogram=%d\n", value, o_histogram);
-
     return TRUE;
 }
 
@@ -191,7 +190,10 @@ static GOptionEntry entries[] = {
             "Create histogram data", NULL},
     { "interval",    'i', 0, G_OPTION_ARG_INT,
             &o_interval_ms,
-            "Interval in milli seconds (default is 1000)", NULL },
+            "Interval in milli seconds (default is 1000msec)", NULL },
+    { "count",    'c', 0, G_OPTION_ARG_INT,
+            &o_count,
+            "Interval in milli seconds (default is 1000msec)", NULL },
     { "memlock",     'm', 0, G_OPTION_ARG_INT,
             &o_memlock,
             "Configure memlock (default is 1)", NULL },
@@ -204,9 +206,9 @@ static GOptionEntry entries[] = {
     { "queue-prio",  'Q', 0, G_OPTION_ARG_INT,
             &o_queue_prio,
             "Set skb priority", NULL },
-    { "thread",     't', 0, G_OPTION_ARG_NONE,
-            &o_thread,
-            "Run loop in thread", NULL },
+//    { "thread",     't', 0, G_OPTION_ARG_NONE,
+//            &o_thread,
+//            "Run loop in thread", NULL },
     { "verbose",     'v', 0, G_OPTION_ARG_NONE,
             &o_verbose,
             "Be verbose", NULL },
@@ -239,6 +241,7 @@ gint parse_command_line_options(gint *argc, char **argv)
     return 0;
 }
 
+#if 0
 static void config_thread(void)
 {
     int rc;
@@ -266,6 +269,7 @@ static void config_thread(void)
         exit (1);
     }
 }
+#endif
 
 static int latency_target_fd = -1;
 static gint32 latency_target_value = 0;
@@ -361,8 +365,10 @@ void signal_handler(int signal)
     case SIGUSR1:
         if (o_histogram) {
             char *histogram_str = NULL;
+            FILE *fd;
+            fd = stdout;
             histogram_str = dump_json_histogram();
-            printf("%s\n", histogram_str);
+            fprintf(fd, "%s\n", histogram_str);
             free(histogram_str);
         }
     break;
@@ -386,7 +392,6 @@ static void *timer_thread(void *params)
     struct timespec next;
     struct timespec interval;
     struct timespec diff;
-
 
     memset(&schedp, 0, sizeof(schedp));
     schedp.sched_priority = o_sched_prio;
@@ -414,8 +419,11 @@ static void *timer_thread(void *params)
         /* calc deviation from next expected timeslot */
         timespec_diff(&now, &next, &diff);
 
-        if (o_histogram) {
-            update_histogram(&diff);
+        update_histogram(&diff);
+
+        if (o_count && histogram.count >= o_count) {
+            do_shutdown++;
+            break;
         }
     }
 
@@ -455,10 +463,16 @@ int main(int argc, char **argv)
                    sizeof(o_queue_prio));
     }
 
-
-
     /* use the /dev/cpu_dma_latency trick if it's there */
     set_latency_target(latency_target_value);
+
+
+    if (o_memlock) {
+        if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
+            perror("mlockal");
+            exit(-2);
+        }
+    }
 
     memset(tp, 0, sizeof(struct ether_testpacket));
 
@@ -494,7 +508,7 @@ int main(int argc, char **argv)
     signal(SIGTERM, signal_handler);
     signal(SIGUSR1, signal_handler);
 
-    if (o_interval_ms) {
+    {
         pthread_t thread;
         pthread_attr_t attr;
 
@@ -513,7 +527,9 @@ int main(int argc, char **argv)
 
         pthread_join(thread, NULL);
 
-    } else {
+    }
+#if 0
+    else {
         struct timespec now;
         struct timespec next;
         struct timespec interval;
@@ -544,9 +560,7 @@ int main(int argc, char **argv)
             /* calc deviation from next expected timeslot */
             timespec_diff(&now, &next, &diff);
 
-            if (o_histogram) {
-                update_histogram(&diff);
-            }
+            update_histogram(&diff);
 
             if (o_verbose) {
                 json_t *j;
@@ -572,6 +586,7 @@ int main(int argc, char **argv)
             tp->seq++;
         }
     }
+#endif
 
     return rv;
 }

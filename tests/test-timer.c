@@ -223,6 +223,7 @@ void test_a_less_b(void)
 	g_assert_true(a_less_b(&a, &b));
 }
 
+#if 0
 void test_get_timer_before_target(void)
 {
 	struct timespec now;
@@ -278,6 +279,7 @@ void test_get_timer_before_target(void)
 	g_assert_cmpint(timer.it_value.tv_nsec, ==, 999700000);
 
 }
+#endif
 
 int main(int argc, char** argv)
 {
@@ -292,8 +294,10 @@ int main(int argc, char** argv)
 	g_test_add_func("/timer/a_less_b/false",
 			test_a_less_b);
 
+#if 0
 	g_test_add_func("/timer/get_time_before_target",
 			test_get_timer_before_target);
+#endif
 
 
 	return g_test_run();

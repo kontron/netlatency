@@ -22,6 +22,7 @@ void timespec_diff(struct timespec *a, struct timespec *b,
 	result->tv_nsec = diff % NSEC_PER_SEC;
 }
 
+#if 0
 void nanosleep_until(struct timespec *ts, int delay)
 {
 	ts->tv_nsec += delay;
@@ -32,6 +33,7 @@ void nanosleep_until(struct timespec *ts, int delay)
 	}
 	clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, ts, NULL);
 }
+#endif
 
 #define TIME_BEFORE_NS 300000
 
@@ -53,6 +55,7 @@ int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
 	return 0;
 }
 
+#if 0
 static void get_timer_before_target(int time_before_ns, struct timespec *now,
 		struct timespec *ts_target, struct itimerspec *timer_before)
 {
@@ -101,6 +104,7 @@ static void get_timer_before_target(int time_before_ns, struct timespec *now,
 		timer_before->it_value.tv_nsec = ts_target->tv_nsec - time_before_ns;
 	}
 }
+#endif
 
 static inline int a_less_b(const struct timespec *a, const struct timespec *b)
 {
@@ -112,6 +116,7 @@ static inline int a_less_b(const struct timespec *a, const struct timespec *b)
 	return 0;
 }
 
+#if 0
 static void busy_poll_to_target_time(struct timespec *ts_target)
 {
 	struct timespec now;
@@ -128,6 +133,7 @@ static void busy_poll_to_target_time(struct timespec *ts_target)
 		loopcount++;
 	}
 }
+#endif
 
 void wait_for_next_timeslice(struct timespec *interval,
 		struct timespec *next)
@@ -156,6 +162,7 @@ void wait_for_next_timeslice(struct timespec *interval,
 	return;
 }
 
+#if 0
 void wait_for_next_timeslice_legacy(struct timespec *interval,
 		struct timespec *next)
 {
@@ -218,3 +225,4 @@ void wait_for_next_timeslice_legacy(struct timespec *interval,
 		perror("clock_gettime");
 	}
 }
+#endif

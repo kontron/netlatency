@@ -25,7 +25,7 @@ def main():
     ax.bar(x, y)
     plt.yscale('log')
 
-    plt.title('counts: %s, min: %s $\mu$s, max: %s $\mu$s oultiers: %s' \
+    plt.title('counts: %s, min: %s $\mu$s, max: %s $\mu$s outliers: %s' \
             % (counts, min_val, max_val, outliers))
     plt.show()
 

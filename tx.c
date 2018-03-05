@@ -193,7 +193,7 @@ static GOptionEntry entries[] = {
             "Interval in milli seconds (default is 1000msec)", NULL },
     { "count",    'c', 0, G_OPTION_ARG_INT,
             &o_count,
-            "Interval in milli seconds (default is 1000msec)", NULL },
+            "Transmit packet count", NULL },
     { "memlock",     'm', 0, G_OPTION_ARG_INT,
             &o_memlock,
             "Configure memlock (default is 1)", NULL },

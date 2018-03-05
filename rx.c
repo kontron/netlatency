@@ -552,8 +552,6 @@ static gboolean parse_histogram_cb(const char *key, const char *value,
         }
     }
 
-    printf("value=%s histogram=%d\n", value, o_histogram);
-
     return TRUE;
 }
 
@@ -616,7 +614,6 @@ static void signal_handler(int signal)
         exit(1);
     break;
     case SIGUSR1:
-        printf("SIGUSR1\n");
         if (o_histogram) {
             char *histogram_str = NULL;
             histogram_str = dump_json_histogram();

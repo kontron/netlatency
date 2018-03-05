@@ -206,9 +206,6 @@ static GOptionEntry entries[] = {
     { "queue-prio",  'Q', 0, G_OPTION_ARG_INT,
             &o_queue_prio,
             "Set skb priority", NULL },
-//    { "thread",     't', 0, G_OPTION_ARG_NONE,
-//            &o_thread,
-//            "Run loop in thread", NULL },
     { "verbose",     'v', 0, G_OPTION_ARG_NONE,
             &o_verbose,
             "Be verbose", NULL },
@@ -240,36 +237,6 @@ gint parse_command_line_options(gint *argc, char **argv)
 
     return 0;
 }
-
-#if 0
-static void config_thread(void)
-{
-    int rc;
-    struct sched_param sp = {0};
-    int policy = SCHED_FIFO;
-    int max_prio;
-
-    /* Lock memory, prevent memory from being paged to the swap area */
-    if (o_memlock) {
-        if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
-            perror("mlockal");
-            exit(-2);
-        }
-    }
-
-    max_prio = sched_get_priority_max(policy);
-    if (o_sched_prio == -1) {
-        o_sched_prio = max_prio;
-    }
-
-    sp.sched_priority = o_sched_prio;
-    rc = pthread_setschedparam(pthread_self(), policy, &sp);
-    if (rc) {
-        perror("pthread_setschedparam()");
-        exit (1);
-    }
-}
-#endif
 
 static int latency_target_fd = -1;
 static gint32 latency_target_value = 0;
@@ -436,6 +403,8 @@ int main(int argc, char **argv)
     int fd;
     struct ifreq ifopts;
     sigset_t sigset;
+    pthread_t thread;
+    pthread_attr_t attr;
 
     parse_command_line_options(&argc, argv);
 
@@ -508,94 +477,29 @@ int main(int argc, char **argv)
     signal(SIGTERM, signal_handler);
     signal(SIGUSR1, signal_handler);
 
-    {
-        pthread_t thread;
-        pthread_attr_t attr;
+    rv = pthread_attr_init(&attr);
+    thread_param.fd = fd;
 
-        rv = pthread_attr_init(&attr);
-        thread_param.fd = fd;
+    rv = pthread_create(&thread, &attr, timer_thread, &thread_param);
 
-        rv = pthread_create(&thread, &attr, timer_thread, &thread_param);
+    while (!do_shutdown) {
+        usleep(10000);
 
-        while (!do_shutdown) {
-            usleep(10000);
-
-            if (do_shutdown) {
-                break;
-            }
-        }
-
-        pthread_join(thread, NULL);
-
-        if (o_histogram) {
-            char *histogram_str = NULL;
-            FILE *fd;
-            fd = stdout;
-            histogram_str = dump_json_histogram();
-            fprintf(fd, "%s\n", histogram_str);
-            free(histogram_str);
-        }
-
-    }
-#if 0
-    else {
-        struct timespec now;
-        struct timespec next;
-        struct timespec interval;
-        struct timespec diff;
-
-        config_thread();
-
-        interval.tv_sec = 0;
-        interval.tv_nsec = o_interval_ms * 1000000;
-
-        /* wait for millisecond == 0 */
-        busy_poll();
-
-        while (!do_shutdown) {
-            /* sync to desired millisecond start */
-            wait_for_next_timeslice(&interval, &next);
-
-            tp->interval_us = o_interval_ms * 1000;
-            tp->packet_size = o_packet_size;
-
-            /* update new timestamp in packet */
-            clock_gettime(CLOCK_REALTIME, &now);
-            memcpy(&tp->ts_tx, &now, sizeof(struct timespec));
-            memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
-
-            write(fd, buf, o_packet_size);
-
-            /* calc deviation from next expected timeslot */
-            timespec_diff(&now, &next, &diff);
-
-            update_histogram(&diff);
-
-            if (o_verbose) {
-                json_t *j;
-                char *str;
-
-
-                j = json_pack("{sisisisisisisi}",
-                              "sequence", tp->seq,
-                              "tx_next_sec", (long long)next.tv_sec,
-                              "tx_next_nsec", next.tv_nsec,
-                              "tx_ts_sec", (long long)now.tv_sec,
-                              "tx_ts_nsec", now.tv_nsec,
-                              "tx_ts_diff_sec", (long long) diff.tv_sec,
-                              "tx_ts_diff_nsec", diff.tv_nsec
-                );
-
-                str = json_dumps(j, JSON_COMPACT);
-                json_decref(j);
-                printf("%s\n", str);
-                free(str);
-            }
-
-            tp->seq++;
+        if (do_shutdown) {
+            break;
         }
     }
-#endif
+
+    pthread_join(thread, NULL);
+
+    if (o_histogram) {
+        char *histogram_str = NULL;
+        FILE *fd;
+        fd = stdout;
+        histogram_str = dump_json_histogram();
+        fprintf(fd, "%s\n", histogram_str);
+        free(histogram_str);
+    }
 
     return rv;
 }

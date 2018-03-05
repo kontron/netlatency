@@ -552,8 +552,6 @@ static gboolean parse_histogram_cb(const char *key, const char *value,
         }
     }
 
-    printf("value=%s histogram=%d\n", value, o_histogram);
-
     return TRUE;
 }
 

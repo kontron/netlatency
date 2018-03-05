@@ -527,6 +527,15 @@ int main(int argc, char **argv)
 
         pthread_join(thread, NULL);
 
+        if (o_histogram) {
+            char *histogram_str = NULL;
+            FILE *fd;
+            fd = stdout;
+            histogram_str = dump_json_histogram();
+            fprintf(fd, "%s\n", histogram_str);
+            free(histogram_str);
+        }
+
     }
 #if 0
     else {

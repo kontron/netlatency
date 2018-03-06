@@ -459,7 +459,7 @@ int main(int argc, char **argv)
     /* destination MAC */
     if (ether_aton_r(o_destination_mac,
             (struct ether_addr*)&tp->hdr.ether_dhost) == NULL) {
-        printf("ether_aton_r: failed\n");
+        perror("ether_aton_r: failed");
         return -1;
     }
 
@@ -471,13 +471,15 @@ int main(int argc, char **argv)
 
 
     sigemptyset(&sigset);
-//	sigaddset(&sigset, SIGALARM);
-
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
     signal(SIGUSR1, signal_handler);
 
     rv = pthread_attr_init(&attr);
+    if (rv) {
+        perror("pthread_attr_init");
+        return -1;
+    }
     thread_param.fd = fd;
 
     rv = pthread_create(&thread, &attr, timer_thread, &thread_param);

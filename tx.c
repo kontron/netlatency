@@ -83,6 +83,8 @@ struct histogram {
     gint32 min;
     gint32 max;
     gint32 count;
+    struct timespec start;
+    struct timespec end;
 };
 
 struct histogram histogram = {
@@ -279,18 +281,7 @@ static void set_latency_target(gint32 latency_value)
     }
 }
 
-void busy_poll(void)
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-
-    while (((ts.tv_nsec / 1000) % 1000) != 0) {
-        clock_gettime(CLOCK_REALTIME, &ts);
-    }
-
-}
-
-static char *dump_json_histogram(void)
+static char *create_json_histogram(void)
 {
     json_t *j, *a;
     char *s;
@@ -319,6 +310,17 @@ static char *dump_json_histogram(void)
     return s;
 }
 
+static void dump_json_histogram(void)
+{
+    char *histogram_str = NULL;
+    FILE *fd;
+
+    fd = stdout;
+    histogram_str = create_json_histogram();
+    fprintf(fd, "%s\n", histogram_str);
+    free(histogram_str);
+}
+
 void signal_handler(int signal)
 {
     switch (signal) {
@@ -331,12 +333,7 @@ void signal_handler(int signal)
     break;
     case SIGUSR1:
         if (o_histogram) {
-            char *histogram_str = NULL;
-            FILE *fd;
-            fd = stdout;
-            histogram_str = dump_json_histogram();
-            fprintf(fd, "%s\n", histogram_str);
-            free(histogram_str);
+            dump_json_histogram();
         }
     break;
     default:
@@ -369,6 +366,8 @@ static void *timer_thread(void *params)
     interval.tv_sec = 0;
     interval.tv_nsec = o_interval_ms * 1000000;
 
+    clock_gettime(CLOCK_REALTIME, &histogram.start);
+
     while (!do_shutdown) {
 
         tp->interval_us = o_interval_ms * 1000;
@@ -393,6 +392,8 @@ static void *timer_thread(void *params)
             break;
         }
     }
+
+    clock_gettime(CLOCK_REALTIME, &histogram.end);
 
     return NULL;
 }
@@ -495,12 +496,7 @@ int main(int argc, char **argv)
     pthread_join(thread, NULL);
 
     if (o_histogram) {
-        char *histogram_str = NULL;
-        FILE *fd;
-        fd = stdout;
-        histogram_str = dump_json_histogram();
-        fprintf(fd, "%s\n", histogram_str);
-        free(histogram_str);
+        dump_json_histogram();
     }
 
     return rv;

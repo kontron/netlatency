@@ -6,10 +6,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
+    output = None
+
     if sys.argv[1] == '-':
         f = sys.stdin
     else:
         f = open(sys.argv[1])
+
+    if len(sys.argv) > 2:
+        output = sys.argv[2]
 
     j = json.load(f)
 
@@ -31,7 +36,11 @@ def main():
 
     plt.title('counts: %s, min: %s $\mu$s, max: %s $\mu$s outliers: %s' \
             % (counts, min_val, max_val, outliers))
-    plt.show()
+
+    if output is None:
+        plt.show()
+    else:
+        plt.savefig(output)
 
 if __name__ == '__main__':
     main()

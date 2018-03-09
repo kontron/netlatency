@@ -55,6 +55,9 @@ static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
 static gint o_ptp_mode = FALSE;
 
+
+static gint do_shutdown = 0;
+
 #define HISTOGRAM_VALUES_MAX 1000
 struct histogram {
     gint32 array[HISTOGRAM_VALUES_MAX];
@@ -62,6 +65,8 @@ struct histogram {
     gint32 min;
     gint32 max;
     gint32 count;
+    struct timespec start;
+    struct timespec end;
 };
 
 struct histogram histogram = {
@@ -243,7 +248,7 @@ static int update_histogram(struct test_packet_result *result)
     return 0;
 }
 
-static char *dump_json_histogram(void)
+static char *create_json_histogram(void)
 {
     json_t *j, *a;
     char *s;
@@ -270,6 +275,17 @@ static char *dump_json_histogram(void)
     json_decref(j);
 
     return s;
+}
+
+static void dump_json_histogram(void)
+{
+    char *histogram_str = NULL;
+    FILE *fd;
+
+    fd = stdout;
+    histogram_str = create_json_histogram();
+    fprintf(fd, "%s\n", histogram_str);
+    free(histogram_str);
 }
 
 static int handle_status_socket(int fd_socket, char *result_str)
@@ -381,13 +397,6 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     if (o_verbose && result_str) {
         printf("%s\n", result_str);
     }
-
-//    if (o_verbose) {
-//        char *histogram_str = NULL;
-//        histogram_str = dump_json_histogram();
-//        printf("%s\n", histogram_str);
-//        free(histogram_str);
-//    }
 
     if (fd_socket != -1 && result_str) {
         rc = handle_status_socket(fd_socket, result_str);
@@ -606,20 +615,15 @@ static void signal_handler(int signal)
     switch (signal) {
     case SIGINT:
     case SIGTERM:
+        //do_shutdown++;
         if (o_histogram) {
-            char *histogram_str = NULL;
-            histogram_str = dump_json_histogram();
-            printf("%s\n", histogram_str);
-            free(histogram_str);
+            dump_json_histogram();
         }
         exit(1);
     break;
     case SIGUSR1:
         if (o_histogram) {
-            char *histogram_str = NULL;
-            histogram_str = dump_json_histogram();
-            printf("%s\n", histogram_str);
-            free(histogram_str);
+            dump_json_histogram();
         }
     break;
     default:
@@ -679,7 +683,10 @@ int main(int argc, char **argv)
     signal(SIGTERM, signal_handler);
     signal(SIGUSR1, signal_handler);
 
-    while (1) {
+
+    clock_gettime(CLOCK_REALTIME, &histogram.start);
+
+    while (!do_shutdown) {
         struct msghdr msg;
         struct iovec iov;
         struct sockaddr_in host_address;
@@ -706,11 +713,10 @@ int main(int argc, char **argv)
         }
     }
 
+    clock_gettime(CLOCK_REALTIME, &histogram.end);
+
     if (o_histogram) {
-        char *histogram_str = NULL;
-        histogram_str = dump_json_histogram();
-        printf("%s\n", histogram_str);
-        free(histogram_str);
+        dump_json_histogram();
     }
 
     close(fd);

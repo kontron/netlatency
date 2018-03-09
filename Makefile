@@ -81,6 +81,7 @@ CLEAN_TARGETS += clean-rx
 CLEAN_TARGETS += clean-tx
 CLEAN_TARGETS += clean-reader
 INSTALL_TARGETS += install-rx
+INSTALL_TARGETS += install-tx
 
 rx_SOURCES := rx.c domain_socket.c timer.c
 rx_OBJECTS := $(addprefix $(o),$(rx_SOURCES:.c=.o))
@@ -108,6 +109,10 @@ $(o)tx: $(tx_OBJECTS)
 
 clean-tx:
 	rm -f $(tx_OBJECTS) $(o)tx
+
+install-tx: $(o)tx
+	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
+	$(INSTALL) -m 0755 $(o)tx $(DESTDIR)$(BINDIR)/
 
 reader_SOURCES := reader.c domain_socket.c
 reader_OBJECTS := $(addprefix $(o),$(reader_SOURCES:.c=.o))

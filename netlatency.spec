@@ -20,3 +20,5 @@ A network latency measurement toolset.
 %{make_install}
 
 %files
+/usr/bin/rx
+/usr/bin/tx

@@ -1,15 +1,15 @@
 Name:       netlatency
-Version:    %{_version}
-Release:    %{_snapshot}%{?dist}
+Version:    %VERSION%
+Release:    %SNAPSHOT%%{?dist}
 Summary:    A network latency measurement toolset
 License:    free
-Source:     %{_src_package_name}.tar.gz
+Source:     %SRC_PACKAGE_NAME%.tar.gz
 
 %description
 A network latency measurement toolset.
 
 %prep
-%autosetup -n %{_src_package_name}
+%autosetup -n %SRC_PACKAGE_NAME%
 
 %build
 

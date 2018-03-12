@@ -1,6 +1,6 @@
 *.o
 *.d
 reader
-rx
-tx
+netlatency-rx
+netlatency-tx
 tests/test-timer

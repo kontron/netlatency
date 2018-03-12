@@ -70,11 +70,9 @@ all: real-all
 
 include tests/tests.mk
 
-ALL_TARGETS += $(o)rx $(o)tx $(o)reader
+ALL_TARGETS += $(o)netlatency-rx $(o)netlatency-tx $(o)reader
 
 real-all: $(ALL_TARGETS)
-
-
 
 
 CLEAN_TARGETS += clean-rx
@@ -87,32 +85,32 @@ rx_SOURCES := rx.c domain_socket.c timer.c
 rx_OBJECTS := $(addprefix $(o),$(rx_SOURCES:.c=.o))
 
 $(o)%.o: %.c
-	$(call compile_tgt,rx)
+	$(call compile_tgt,netlatency)
 
 
-$(o)rx: $(rx_OBJECTS)
-	$(call link_tgt,rx)
+$(o)netlatency-rx: $(rx_OBJECTS)
+	$(call link_tgt,netlatency-rx)
 
 clean-rx:
 	rm -f $(rx_OBJECTS) $(o)rx
 
-install-rx: $(o)rx
+install-rx: $(o)netlatency-rx
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
-	$(INSTALL) -m 0755 $(o)rx $(DESTDIR)$(BINDIR)/
+	$(INSTALL) -m 0755 $(o)netlatency-rx $(DESTDIR)$(BINDIR)/
 
 
 tx_SOURCES := tx.c timer.c domain_socket.c
 tx_OBJECTS := $(addprefix $(o),$(tx_SOURCES:.c=.o))
 
-$(o)tx: $(tx_OBJECTS)
+$(o)netlatency-tx: $(tx_OBJECTS)
 	$(call link_tgt,tx)
 
 clean-tx:
 	rm -f $(tx_OBJECTS) $(o)tx
 
-install-tx: $(o)tx
+install-tx: $(o)netlatency-tx
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
-	$(INSTALL) -m 0755 $(o)tx $(DESTDIR)$(BINDIR)/
+	$(INSTALL) -m 0755 $(o)netlatency-tx $(DESTDIR)$(BINDIR)/
 
 reader_SOURCES := reader.c domain_socket.c
 reader_OBJECTS := $(addprefix $(o),$(reader_SOURCES:.c=.o))

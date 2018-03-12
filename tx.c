@@ -391,6 +391,8 @@ static void *timer_thread(void *params)
             do_shutdown++;
             break;
         }
+
+	tp->seq++;
     }
 
     clock_gettime(CLOCK_REALTIME, &histogram.end);

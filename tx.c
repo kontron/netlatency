@@ -398,6 +398,11 @@ static void *timer_thread(void *params)
     return NULL;
 }
 
+static void show_version(void)
+{
+    g_printf("%s\n", VERSION);
+}
+
 int main(int argc, char **argv)
 {
     int rv = 0;
@@ -408,6 +413,11 @@ int main(int argc, char **argv)
     pthread_attr_t attr;
 
     parse_command_line_options(&argc, argv);
+
+    if (o_version) {
+        show_version();
+        return 0;
+    }
 
     if (argc < 2) {
         usage();

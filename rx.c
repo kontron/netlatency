@@ -631,6 +631,10 @@ static void signal_handler(int signal)
     }
 }
 
+static void show_version(void)
+{
+    g_printf("%s\n", VERSION);
+}
 
 int main(int argc, char **argv)
 {
@@ -642,6 +646,11 @@ int main(int argc, char **argv)
     sigset_t sigset;
 
     parse_command_line_options(&argc, argv);
+
+    if (o_version) {
+        show_version();
+        return 0;
+    }
 
     if (argc < 2) {
         usage();

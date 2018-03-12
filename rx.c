@@ -62,6 +62,7 @@ static gint do_shutdown = 0;
 struct histogram {
     gint32 array[HISTOGRAM_VALUES_MAX];
     gint32 outliers;
+    gint32 time_error;
     gint32 min;
     gint32 max;
     gint32 count;
@@ -237,7 +238,9 @@ static int update_histogram(struct test_packet_result *result)
         histogram.min = latency_usec;
     }
 
-    if (latency_usec < o_histogram) {
+    if (0 < latency_usec) {
+        histogram.time_error++;
+    } else if (latency_usec < o_histogram) {
         histogram.array[latency_usec]++;
     } else {
         histogram.outliers++;
@@ -263,11 +266,12 @@ static char *create_json_histogram(void)
         json_decref(integer);
     }
 
-    j = json_pack("{sisisisiso?}",
+    j = json_pack("{sisisisisiso?}",
                   "count", histogram.count,
                   "min", histogram.min,
                   "max", histogram.max,
                   "outliers", histogram.outliers,
+                  "time_error", histogram.time_error,
                   "histogram", a
     );
 
@@ -373,12 +377,8 @@ static int handle_status_socket(int fd_socket, char *result_str)
 static int handle_msg(struct msghdr *msg, int fd_socket)
 {
     int rc = 0;
-    struct timespec rx_ts;
     struct test_packet_result result;
     char *result_str = NULL;
-
-    memset(&rx_ts, 0, sizeof(rx_ts));
-    get_hw_timestamp(msg, &rx_ts);
 
     /* build result message string */
     {

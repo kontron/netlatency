@@ -61,6 +61,9 @@
 #include "data.h"
 #include "timer.h"
 
+#ifndef VERSION
+#define VERSION "dev"
+#endif
 
 //static gboolean o_thread = 0;
 static gchar *help_description = NULL;

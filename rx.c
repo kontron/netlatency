@@ -43,6 +43,9 @@
 #include "domain_socket.h"
 #include "timer.h"
 
+#ifndef VERSION
+#define VERSION "dev"
+#endif
 
 static gchar *help_description = NULL;
 static gint o_verbose = 0;

@@ -187,7 +187,7 @@ static GOptionEntry entries[] = {
     { "destination", 'd', 0, G_OPTION_ARG_STRING,
             &o_destination_mac,
             "Destination MAC address", NULL },
-    { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG , G_OPTION_ARG_CALLBACK,
+    { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_CALLBACK,
             parse_histogram_cb,
             "Create histogram data", NULL},
     { "interval",    'i', 0, G_OPTION_ARG_INT,
@@ -222,7 +222,8 @@ gint parse_command_line_options(gint *argc, char **argv)
     GError *error = NULL;
     GOptionContext *context;
 
-    context = g_option_context_new("DEVICE - transmit timestamped test packets");
+    context = g_option_context_new(
+                    "DEVICE - transmit timestamped test packets");
 
     g_option_context_add_main_entries(context, entries, NULL);
     g_option_context_set_description(context,

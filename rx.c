@@ -573,7 +573,7 @@ static GOptionEntry entries[] = {
             "Receive packet count", NULL },
     { "socket",    's', 0, G_OPTION_ARG_NONE,
             &o_socket, "Write packet results to socket", NULL },
-    { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG , G_OPTION_ARG_CALLBACK,
+    { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_CALLBACK,
             parse_histogram_cb, "Write packet histogram in JSON format", NULL},
     { "ethertype", 'e', 0, G_OPTION_ARG_INT,
             &o_capture_ethertype, "Set ethertype to filter"

@@ -148,6 +148,7 @@ static int max_fd;
 static int check_sequence_num(unsigned long seq, long *dropped_packets,
         gboolean *sequence_error)
 {
+    int rc = 0;
     static unsigned long last_seq = 0;
 
     if (last_seq == 0) {
@@ -161,11 +162,12 @@ static int check_sequence_num(unsigned long seq, long *dropped_packets,
     *sequence_error = seq <= last_seq;
 
     if (*dropped_packets || *sequence_error) {
-        printf("dropped=%ld error=%d\n", *dropped_packets, *sequence_error);
+        rc = 1;
     }
 
     last_seq = seq;
-    return 0;
+
+    return rc;
 }
 
 struct test_packet_result {
@@ -173,8 +175,12 @@ struct test_packet_result {
     uint32_t interval_us;
     uint32_t packet_size;
 
-    struct timespec diff_ts;
+    struct timespec tx_user_ts;
+    struct timespec rx_hw_ts;
+    struct timespec rx_user_ts;
+    struct timespec latency_ts;
     uint32_t abs_ns;
+
     long dropped;
     gboolean seq_error;
 };
@@ -183,10 +189,8 @@ static int handle_test_packet(struct msghdr *msg,
         struct test_packet_result *result)
 {
     struct ether_testpacket *tp;
-    struct timespec rx_ts;
 
-    memset(&rx_ts, 0, sizeof(rx_ts));
-    get_hw_timestamp(msg, &rx_ts);
+    get_hw_timestamp(msg, &result->rx_hw_ts);
 
     tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
@@ -194,12 +198,13 @@ static int handle_test_packet(struct msghdr *msg,
     result->seq = tp->seq;
     result->interval_us = tp->interval_us;
     result->packet_size = tp->packet_size;
+    memcpy(&result->tx_user_ts, &tp->ts_tx, sizeof(struct timespec));
 
     /* calc diff between timestamp in testpacket hardware timestamp */
-    timespec_diff(&tp->ts_tx_target, &rx_ts, &result->diff_ts);
+    timespec_diff(&tp->ts_tx_target, &result->rx_hw_ts, &result->latency_ts);
 
     /* calc absolut to interval begin */
-    result->abs_ns = rx_ts.tv_nsec % (tp->interval_us * 1000);
+    result->abs_ns = result->rx_hw_ts.tv_nsec % (tp->interval_us * 1000);
 
     /* calc dropped count and sequence error */
     check_sequence_num(tp->seq, &result->dropped, &result->seq_error);
@@ -210,29 +215,56 @@ static int handle_test_packet(struct msghdr *msg,
 static char *dump_json_test_packet(struct test_packet_result *result)
 {
     json_t *j;
-    char *str;
+    char *s;
+    char *s_tx_user;
+    char *s_rx_hw;
+    char *s_rx_user;
 
-    j = json_pack("{sisisisisisisisb}",
-                  "sequence", result->seq,
-                  "delay_us", (result->diff_ts.tv_nsec/1000),
-                  "delay_nsec", result->diff_ts.tv_nsec,
-                  "delay_sec", result->diff_ts.tv_sec,
-                  "abs_ns", result->abs_ns,
-                  "interval_us", result->interval_us,
-                  "packet_size", result->packet_size,
-                  "dropped_packets", result->dropped,
-                  "sequence_error", result->seq_error
+    s_tx_user = timespec_to_iso_string(&result->tx_user_ts);
+    s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
+    s_rx_user = timespec_to_iso_string(&result->rx_user_ts);
+
+    j = json_pack("{sss{sisissssss}}",
+                  "type", "rx-packet",
+                  "object",
+                  "sequence-number", result->seq,
+                  "packet-size", result->packet_size,
+                  "tx-user-timestamp", s_tx_user,
+                  "rx-hw-timestamp", s_rx_hw,
+                  "rx-user-timestamp", s_rx_user
     );
 
-    str = json_dumps(j, JSON_COMPACT);
+    g_free(s_tx_user);
+    g_free(s_rx_hw);
+    g_free(s_rx_user);
+
+    s = json_dumps(j, JSON_COMPACT);
     json_decref(j);
 
-    return str;
+    return s;
+}
+
+static char *dump_json_error(struct test_packet_result *result)
+{
+    char *s = NULL;
+    json_t *j;
+
+    j = json_pack("{sss{sisb}}",
+                  "type", "rx-error",
+                  "object",
+                  "dropped-packets", result->dropped,
+                  "sequence-error", result->seq_error
+    );
+
+    s = json_dumps(j, JSON_COMPACT);
+    json_decref(j);
+
+    return s;
 }
 
 static int update_histogram(struct test_packet_result *result)
 {
-    int latency_usec = result->diff_ts.tv_nsec/1000;
+    int latency_usec = result->latency_ts.tv_nsec/1000;
 
     if (latency_usec > histogram.max || histogram.max == 0) {
         histogram.max = latency_usec;
@@ -292,6 +324,7 @@ static void dump_json_histogram(void)
     fd = stdout;
     histogram_str = create_json_histogram();
     fprintf(fd, "%s\n", histogram_str);
+    fflush(fd);
     free(histogram_str);
 }
 
@@ -381,32 +414,45 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
 {
     int rc = 0;
     struct test_packet_result result;
-    char *result_str = NULL;
+    char *json_rx_packet_str = NULL;
+    char *json_rx_error_str = NULL;
+
+    clock_gettime(CLOCK_REALTIME, &result.rx_user_ts);
 
     /* build result message string */
     {
         switch (o_capture_ethertype) {
         case TEST_PACKET_ETHER_TYPE:
             handle_test_packet(msg, &result);
-            result_str = dump_json_test_packet(&result);
+            json_rx_packet_str = dump_json_test_packet(&result);
+            if (result.dropped || result.seq_error) {
+                json_rx_error_str = dump_json_error(&result);
+            }
             update_histogram(&result);
+
+            if (json_rx_error_str) {
+                if (o_verbose) {
+                    printf("%s\n", json_rx_error_str);
+                }
+                free(json_rx_error_str);
+            }
+
+            if (json_rx_packet_str) {
+                if (o_verbose) {
+                    printf("%s\n", json_rx_packet_str);
+                }
+
+                if (fd_socket != -1) {
+                    rc = handle_status_socket(fd_socket, json_rx_packet_str);
+                }
+                free(json_rx_packet_str);
+            }
+
             break;
         default:
             printf("tbd ... other packet\n");
             break;
         }
-    }
-
-    if (o_verbose && result_str) {
-        printf("%s\n", result_str);
-    }
-
-    if (fd_socket != -1 && result_str) {
-        rc = handle_status_socket(fd_socket, result_str);
-    }
-
-    if (result_str != NULL) {
-        free(result_str);
     }
 
     return rc;

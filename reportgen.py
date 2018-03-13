@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 def main():
     output = None
 
+    if len(sys.argv) < 2:
+        return
+
     if sys.argv[1] == '-':
         f = sys.stdin
     else:

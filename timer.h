@@ -17,4 +17,6 @@ void wait_for_next_timeslice(struct timespec *interval,
 void wait_for_next_timeslice_legacy(struct timespec *interval,
 		struct timespec *next);
 
+char *timespec_to_iso_string(struct timespec *time);
+
 #endif /* __TIMER_H__ */

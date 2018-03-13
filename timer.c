@@ -228,3 +228,23 @@ void wait_for_next_timeslice_legacy(struct timespec *interval,
 	}
 }
 #endif
+
+char *timespec_to_iso_string(struct timespec *time)
+{
+    GString *iso_string;
+    gchar *s;
+    GTimeVal t;
+
+    t.tv_sec = time->tv_sec;
+    t.tv_usec = 0; // let it zero .. append nsec later
+    s = g_time_val_to_iso8601(&t);
+
+    /* remove trailing 'Z' */
+    iso_string = g_string_new_len(s, strlen(s)-1);
+    g_free(s);
+
+    g_string_append_printf(iso_string, ".%09ld", time->tv_nsec);
+    g_string_append_printf(iso_string, "Z");
+
+    return g_string_free(iso_string, FALSE);
+}

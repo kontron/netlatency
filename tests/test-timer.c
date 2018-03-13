@@ -175,6 +175,33 @@ static void test_get_timeval_to_next_slice(void)
 	g_assert_cmpint(next.tv_nsec, ==, 0);
 }
 
+static void test_timespec_to_iso_string(void)
+{
+    struct timespec t;
+    char *s;
+
+    t.tv_sec = 0;
+    t.tv_nsec = 0;
+    s = timespec_to_iso_string(&t);
+    g_assert(s != NULL);
+    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.000000000Z");
+    g_free(s);
+
+    t.tv_sec = 0;
+    t.tv_nsec = 5000000;
+    s = timespec_to_iso_string(&t);
+    g_assert(s != NULL);
+    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.005000000Z");
+    g_free(s);
+
+    t.tv_sec = 1520944655;
+    t.tv_nsec = 5000000;
+    s = timespec_to_iso_string(&t);
+    g_assert(s != NULL);
+    g_assert_cmpstr(s, ==, "2018-03-13T12:37:35.005000000Z");
+    g_free(s);
+}
+
 #if 0
 void test_a_less_b(void)
 {
@@ -292,6 +319,9 @@ int main(int argc, char** argv)
 
 	g_test_add_func("/timer/a/valid",
 			test_get_timeval_to_next_slice);
+
+	g_test_add_func("/timer/timespec_to_iso_string/valid",
+			test_timespec_to_iso_string);
 
 #if 0
 	g_test_add_func("/timer/a_less_b/false",

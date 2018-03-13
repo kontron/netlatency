@@ -1,8 +1,8 @@
-# RX-TX
+# Netlatency
 
-The RX-TX toolset is used to measure the latency and jitter parameters of an ethernet connection.
+The netlatency toolset is used to measure the latency and jitter parameters of an ethernet connection.
 
-## TX
+## netlatency-tx
 
 ### Synopsis
 	Usage:
@@ -24,24 +24,25 @@ The RX-TX toolset is used to measure the latency and jitter parameters of an eth
 	This tool sends ethernet test packets.
 
 
-## RX
+## netlatency-tx
 
 ### Synopsis
+    Usage:
+      netlatency-rx [OPTION...] DEVICE - receive timestamped test packets
 
-	Usage:
-	  rx [OPTION...] DEVICE - receive timestamped test packets
+    Help Options:
+      -?, --help          Show help options
 
-	Help Options:
-	  -h, --help          Show help options
+    Application Options:
+      -v, --verbose       Be verbose
+      -q, --quiet         Suppress error messages
+      -c, --count         Receive packet count
+      -s, --socket        Write packet results to socket
+      -h, --histogram     Write packet histogram in JSON format
+      -e, --ethertype     Set ethertype to filter(Default is 0x0808, ETH_P_ALL is 0x3)
+      -f, --rxfilter      Set hw rx filterfilter
+      -p, --ptp           Set hw rx filterfilter
+      -V, --version       Show version inforamtion and exit
 
-	Application Options:
-	  -v, --verbose       Be verbose
-	  -q, --quiet         Suppress error messages
-	  -s, --socket        Write packet results to socket
-	  -e, --ethertype     Set ethertype to filter(Default is 0x0808, ETH_P_ALL is 0x3)
-	  -f, --rxfilter      Set hw rx filterfilter
-	  -p, --ptp           Set hw rx filterfilter
-	  -V, --version       Show version inforamtion and exit
-
-	This tool receives and analyzes incoming ethernet test packets.
+    This tool receives and analyzes incoming ethernet test packets.
 

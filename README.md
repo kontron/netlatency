@@ -5,8 +5,8 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
 
 ## Table of contents
 
-1. [netlatency-tx](## netlatency-tx)
-2. [netlatency-rx](## netlatency-rx)
+1. [netlatency-tx](##netlatency-tx)
+2. [netlatency-rx](##netlatency-rx)
 
 
 ## netlatency-tx
@@ -34,7 +34,7 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
     This tool sends ethernet test packets.
 
 
-## netlatency-tx
+## netlatency-rx
 
 ### Synopsis
 

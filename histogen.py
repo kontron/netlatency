@@ -64,14 +64,14 @@ def main(args=None):
                 j = json.loads(line)
                 if j['type'] == 'latency':
                     update_histogram(j['object'], histogram_out)
-                    count += 1
-                    if count == args.count:
-                        print json.dumps(histogram_out)
-                        count = 0
-                        histogram_out = copy.deepcopy(histogram_empty)
 
-                    elif args.count == 0:
-                        print json.dumps(histogram_out)
+                    if args.count != 0:
+                        count += 1
+
+                        if count == args.count:
+                            print json.dumps(histogram_out)
+                            count = 0
+                            histogram_out = copy.deepcopy(histogram_empty)
 
             except ValueError:
                 pass

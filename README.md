@@ -3,6 +3,12 @@
 The netlatency toolset is used to measure the latency and jitter parameters of an ethernet connection.
 
 
+## Table of contents
+
+1. [netlatency-tx](## netlatency-tx)
+2. [netlatency-rx](## netlatency-rx)
+
+
 ## netlatency-tx
 
 ### Synopsis

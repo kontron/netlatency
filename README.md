@@ -131,3 +131,15 @@ output from latency
         "histogram": [0, 0, ...., 0],
       }
     }
+
+
+## Usage Examples
+
+### Receive testpackets and send with socat to UDP port
+
+    ./netlatency-rx enp2s0  -v |  socat - udp-sendto:127.0.0.1:5000
+
+
+### Receive testpackets, calc latency, generate histogram and plot
+
+    ./netlatency-rx enp2s0 -c 10000 -v | ./latency.py -  | ./histogen.py  | ./reportgen.py

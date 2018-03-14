@@ -2,13 +2,6 @@
 
 The netlatency toolset is used to measure the latency and jitter parameters of an ethernet connection.
 
-
-## Table of contents
-
-1. [netlatency-tx](##netlatency-tx)
-2. [netlatency-rx](##netlatency-rx)
-
-
 ## netlatency-tx
 
 ### Synopsis
@@ -33,6 +26,15 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
 
     This tool sends ethernet test packets.
 
+### outputs
+
+    // not implemented yet
+    {
+      "type": "settings",
+      "object": {
+        "interval": 1000,
+      }
+    }
 
 ## netlatency-rx
 
@@ -58,7 +60,7 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
     This tool receives and analyzes incoming ethernet test packets.
 
 
-### JSON outputs
+### outputs
 
     {
       "type": "rx-packet",
@@ -79,13 +81,6 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
       }
     }
 
-    // not implemented yet
-    {
-      "type": "settings",
-      "object": {
-        "interval": 1000,
-      }
-    }
 
     // not implemented yet
     {
@@ -93,5 +88,42 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
       "object": {
         "sequence-number": 1,
         "tx-hw-timestamp": "",
+      }
+    }
+
+## Helper: latency
+
+### input
+
+output from netlatency-rx
+
+### output
+
+    {
+      "type": "latency",
+      "object": {
+        "latency-user-hw": 10    // latency from tx user space to rx hw in
+                                 // nanoseconds
+        "latency-user-user": 100 // latency from tx user space to rx user space
+                                 // in nanoseconds
+      }
+    }
+
+## Helper: histogen
+
+### input
+
+output from latency
+
+## Output handling
+    {
+      "type": "histogram",
+      "object": {
+        "count": 100,
+        "time_error":,
+        "min":,
+        "max":,
+        "outliers": ,
+        "histogram": [0, 0, ...., 0],
       }
     }

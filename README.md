@@ -26,7 +26,7 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
 
     This tool sends ethernet test packets.
 
-### outputs
+### Outputs
 
     // not implemented yet
     {
@@ -60,7 +60,7 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
     This tool receives and analyzes incoming ethernet test packets.
 
 
-### outputs
+### Output
 
     {
       "type": "rx-packet",
@@ -91,13 +91,15 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
       }
     }
 
+
+
 ## Helper: latency
 
-### input
+### Input
 
 output from netlatency-rx
 
-### output
+### Output
 
     {
       "type": "latency",
@@ -109,13 +111,15 @@ output from netlatency-rx
       }
     }
 
+
+
 ## Helper: histogen
 
-### input
+### Input
 
 output from latency
 
-## Output handling
+## Output
     {
       "type": "histogram",
       "object": {

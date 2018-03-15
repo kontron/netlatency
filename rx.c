@@ -48,15 +48,15 @@
 #endif
 
 static gchar *help_description = NULL;
-static gint o_verbose = 0;
-static gint o_count = 0;
-static gint o_quiet = 0;
-static gint o_version = 0;
-static gint o_socket = 0;
-static gint o_histogram = 0;
 static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
-static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
+static gint o_count = 0;
+static gint o_histogram = 0;
 static gint o_ptp_mode = FALSE;
+static gint o_quiet = 0;
+static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
+static gint o_socket = 0;
+static gint o_verbose = 0;
+static gint o_version = 0;
 
 
 static gint do_shutdown = 0;
@@ -431,14 +431,14 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
             update_histogram(&result);
 
             if (json_rx_error_str) {
-                if (o_verbose) {
+                if (!o_quiet) {
                     printf("%s\n", json_rx_error_str);
                 }
                 free(json_rx_error_str);
             }
 
             if (json_rx_packet_str) {
-                if (o_verbose) {
+                if (!o_quiet) {
                     printf("%s\n", json_rx_packet_str);
                 }
 

@@ -69,34 +69,13 @@
 static gchar *help_description = NULL;
 static gint o_count = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
-static gint o_histogram = 0;
 static gint o_memlock = 1;
 static gint o_sched_prio = 99;
 static gint o_verbose = 0;
 static gint o_version = 0;
 static int o_queue_prio = -1;
 
-
 static gint do_shutdown = 0;
-
-#define HISTOGRAM_VALUES_MAX 1000
-struct histogram {
-    gint32 array[HISTOGRAM_VALUES_MAX];
-    gint32 outliers;
-    gint32 min;
-    gint32 max;
-    gint32 count;
-    struct timespec start;
-    struct timespec end;
-};
-
-struct histogram histogram = {
-    .array = {0},
-    .outliers = 0,
-    .min = 0,
-    .max = 0,
-    .count = 0,
-};
 
 /*
     TODO:
@@ -138,61 +117,15 @@ int eth_open(const char *device)
     return fd;
 }
 
-static int update_histogram(struct timespec *diff)
-{
-    int latency_usec = labs(diff->tv_nsec/1000);
-
-    if (latency_usec > histogram.max || histogram.max == 0) {
-        histogram.max = latency_usec;
-    }
-    if (latency_usec < histogram.min || histogram.min == 0) {
-        histogram.min = latency_usec;
-    }
-
-    if (latency_usec < o_histogram) {
-        histogram.array[latency_usec]++;
-    } else {
-        histogram.outliers++;
-    }
-
-    histogram.count++;
-
-    return 0;
-}
-
 void usage(void)
 {
     g_printf("%s", help_description);
-}
-
-static gboolean parse_histogram_cb(const char *key, const char *value,
-        gpointer user_data, GError **error)
-{
-    gchar *endPtr;
-    (void)key;
-    (void)user_data;
-    (void)error;
-
-
-    if (value == NULL) {
-        o_histogram = HISTOGRAM_VALUES_MAX;
-    } else {
-        o_histogram = g_ascii_strtoull(value, &endPtr, 10);
-        if (o_histogram > HISTOGRAM_VALUES_MAX) {
-            o_histogram = HISTOGRAM_VALUES_MAX;
-        }
-    }
-
-    return TRUE;
 }
 
 static GOptionEntry entries[] = {
     { "destination", 'd', 0, G_OPTION_ARG_STRING,
             &o_destination_mac,
             "Destination MAC address", NULL },
-    { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_CALLBACK,
-            parse_histogram_cb,
-            "Create histogram data", NULL},
     { "interval",    'i', 0, G_OPTION_ARG_INT,
             &o_interval_ms,
             "Interval in milli seconds (default is 1000msec)", NULL },
@@ -226,7 +159,10 @@ gint parse_command_line_options(gint *argc, char **argv)
     GOptionContext *context;
 
     context = g_option_context_new(
-                    "DEVICE - transmit timestamped test packets");
+                    "interface");
+    g_option_context_set_summary(context,
+            "Generate test packets that contains additional information for\n"
+            "latency measurements.");
 
     g_option_context_add_main_entries(context, entries, NULL);
     g_option_context_set_description(context,
@@ -285,46 +221,6 @@ static void set_latency_target(gint32 latency_value)
     }
 }
 
-static char *create_json_histogram(void)
-{
-    json_t *j, *a;
-    char *s;
-    int i;
-
-    a = json_array();
-
-    for (i = 0; i < o_histogram; i++) {
-        json_t *integer;
-        integer = json_integer(histogram.array[i]);
-        json_array_append(a, integer);
-        json_decref(integer);
-    }
-
-    j = json_pack("{sisisisiso?}",
-                  "count", histogram.count,
-                  "min", histogram.min,
-                  "max", histogram.max,
-                  "outliers", histogram.outliers,
-                  "histogram", a
-    );
-
-    s = json_dumps(j, JSON_COMPACT);
-    json_decref(j);
-
-    return s;
-}
-
-static void dump_json_histogram(void)
-{
-    char *histogram_str = NULL;
-    FILE *fd;
-
-    fd = stdout;
-    histogram_str = create_json_histogram();
-    fprintf(fd, "%s\n", histogram_str);
-    free(histogram_str);
-}
-
 void signal_handler(int signal)
 {
     switch (signal) {
@@ -336,9 +232,6 @@ void signal_handler(int signal)
         do_shutdown++;
     break;
     case SIGUSR1:
-        if (o_histogram) {
-            dump_json_histogram();
-        }
     break;
     default:
     break;
@@ -360,6 +253,7 @@ static void *timer_thread(void *params)
     struct timespec next;
     struct timespec interval;
     struct timespec diff;
+    gint64 count = 0;
 
     memset(&schedp, 0, sizeof(schedp));
     schedp.sched_priority = o_sched_prio;
@@ -369,8 +263,6 @@ static void *timer_thread(void *params)
 
     interval.tv_sec = 0;
     interval.tv_nsec = o_interval_ms * 1000000;
-
-    clock_gettime(CLOCK_REALTIME, &histogram.start);
 
     while (!do_shutdown) {
 
@@ -389,17 +281,13 @@ static void *timer_thread(void *params)
         /* calc deviation from next expected timeslot */
         timespec_diff(&now, &next, &diff);
 
-        update_histogram(&diff);
-
-        if (o_count && histogram.count >= o_count) {
+        if (o_count && count >= o_count) {
             do_shutdown++;
             break;
         }
 
        tp->seq++;
     }
-
-    clock_gettime(CLOCK_REALTIME, &histogram.end);
 
     return NULL;
 }
@@ -510,10 +398,6 @@ int main(int argc, char **argv)
     }
 
     pthread_join(thread, NULL);
-
-    if (o_histogram) {
-        dump_json_histogram();
-    }
 
     return rv;
 }

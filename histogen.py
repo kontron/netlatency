@@ -33,6 +33,7 @@ def main(args=None):
         description='histogen')
 
     parser.add_argument('-c', '--count', type=int, dest='count', default=0)
+    parser.add_argument('--width', type=int, dest='width', default=100)
 #    parser.add_argument('-i', '--interval', type=int, dest='interval')
 
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
@@ -51,7 +52,7 @@ def main(args=None):
             'max': 0,
             'outliers': 0,
             'time_error': 0,
-            'histogram': [0] * 100,
+            'histogram': [0] * args.width,
         }
     }
 

@@ -58,25 +58,18 @@
 #define VERSION "dev"
 #endif
 
-//static gboolean o_thread = 0;
 static gchar *help_description = NULL;
-static gint o_count = 0;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
+static gint o_count = 0;
+static gint o_interval_ms = 1000;
 static gint o_memlock = 1;
+static gint o_packet_size = -1;
 static gint o_sched_prio = 99;
 static gint o_verbose = 0;
 static gint o_version = 0;
 static int o_queue_prio = -1;
 
 static gint do_shutdown = 0;
-
-/*
-    TODO:
-    the configuration can be set by config thread .. use threadsafe access
-    https://developer.gnome.org/glib/2.54/glib-Atomic-Operations.html
-*/
-gint o_interval_ms = 1000;
-gint o_packet_size = -1;
 
 static uint8_t buf[2048];
 struct ether_testpacket *tp = (struct ether_testpacket*)buf;

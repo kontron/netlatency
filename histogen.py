@@ -60,8 +60,6 @@ def main(args=None):
     parser.add_argument('--width', type=int, dest='width', default=100)
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
                        default=sys.stdin)
-    parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'),
-                       default=sys.stdout)
     args = parser.parse_args(args)
 
     output = None
@@ -82,6 +80,7 @@ def main(args=None):
     count = 0
     try:
         for line in args.infile:
+            j = None
             try:
                 j = json.loads(line)
                 if j['type'] == 'latency':
@@ -95,15 +94,15 @@ def main(args=None):
                             sys.stdout.flush()
                             count = 0
                             histogram_out = copy.deepcopy(histogram_empty)
-
-            except ValueError:
+            except ValueError as e:
+                print(e, file=sys.stderr)
                 pass
+
     except KeyboardInterrupt as e:
         pass
 
-    if output == None:
-        print(json.dumps(histogram_out), file=sys.stdout)
-        sys.stdout.flush()
+    print(json.dumps(histogram_out), file=sys.stdout)
+    sys.stdout.flush()
 
 
 if __name__ == '__main__':

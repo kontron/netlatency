@@ -60,20 +60,18 @@ def main(args=None):
         for line in args.infile:
             try:
                 j = json.loads(line)
-            except ValueError:
-                pass
 
-            if j['type'] == 'rx-error':
-                print(line, file=sys.stdout)
-                sys.stdout.flush()
-                pass
-            elif j['type'] == 'rx-packet':
-                result = calc_latency(j['object'])
-                print(result, file=sys.stdout)
-                sys.stdout.flush()
+                if j['type'] == 'rx-error':
+                    print(line, file=sys.stdout)
+                    sys.stdout.flush()
+                elif j['type'] == 'rx-packet':
+                    result = calc_latency(j['object'])
+                    print(json.dumps(result), file=sys.stdout)
+                    sys.stdout.flush()
+            except ValueError as e:
+                print(e, file=sys.stderr)
                 pass
     except KeyboardInterrupt as e:
-        sys.stdout.flush()
         pass
 
 

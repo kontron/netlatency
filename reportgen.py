@@ -77,7 +77,7 @@ def main(args=None):
             except ValueError:
                 pass
 
-        print "No valid histogram data found"
+        print("No valid histogram data found")
         sys.exit(1)
 
     except KeyboardInterrupt as e:

@@ -424,22 +424,25 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         switch (o_capture_ethertype) {
         case TEST_PACKET_ETHER_TYPE:
             handle_test_packet(msg, &result);
-            json_rx_packet_str = dump_json_test_packet(&result);
+            update_histogram(&result);
+
+
             if (result.dropped || result.seq_error) {
                 json_rx_error_str = dump_json_error(&result);
             }
-            update_histogram(&result);
-
             if (json_rx_error_str) {
                 if (!o_quiet) {
                     printf("%s\n", json_rx_error_str);
+                    fflush(stdout);
                 }
                 free(json_rx_error_str);
             }
 
+            json_rx_packet_str = dump_json_test_packet(&result);
             if (json_rx_packet_str) {
                 if (!o_quiet) {
                     printf("%s\n", json_rx_packet_str);
+                    fflush(stdout);
                 }
 
                 if (fd_socket != -1) {

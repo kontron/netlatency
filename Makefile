@@ -70,14 +70,13 @@ all: real-all
 
 include tests/tests.mk
 
-ALL_TARGETS += $(o)netlatency-rx $(o)netlatency-tx $(o)reader
+ALL_TARGETS += $(o)netlatency-rx $(o)netlatency-tx
 
 real-all: $(ALL_TARGETS)
 
 
 CLEAN_TARGETS += clean-rx
 CLEAN_TARGETS += clean-tx
-CLEAN_TARGETS += clean-reader
 INSTALL_TARGETS += install-rx
 INSTALL_TARGETS += install-tx
 
@@ -111,15 +110,6 @@ clean-tx:
 install-tx: $(o)netlatency-tx
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
 	$(INSTALL) -m 0755 $(o)netlatency-tx $(DESTDIR)$(BINDIR)/
-
-reader_SOURCES := reader.c domain_socket.c
-reader_OBJECTS := $(addprefix $(o),$(reader_SOURCES:.c=.o))
-
-$(o)reader: $(reader_OBJECTS)
-	$(call link_tgt,reader)
-
-clean-reader:
-	rm -f $(reader_OBJECTS) $(o)reader
 
 
 .PHONY: $(CLEAN_TARGETS) clean

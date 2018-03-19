@@ -30,6 +30,7 @@ import argparse
 import copy
 import json
 import matplotlib.pyplot as plt
+import numpy
 import sys
 import threading
 import time
@@ -53,6 +54,19 @@ def update_histogram(json, output):
         histogram['outliers'] += 1
 
 
+    tx_timestamp = numpy.datetime64(json['tx-user-timestamp'])
+
+    if not histogram['start-timestamp']:
+        histogram['start-timestamp'] = json['tx-user-timestamp']
+
+    if not histogram['end-timestamp']:
+        histogram['end-timestamp'] = json['tx-user-timestamp']
+
+    if numpy.datetime64(json['tx-user-timestamp']) > \
+            numpy.datetime64(histogram['end-timestamp']):
+        histogram['end-timestamp'] = json['tx-user-timestamp']
+
+
 def main(args=None):
     parser = argparse.ArgumentParser(
         description='histogen')
@@ -72,6 +86,8 @@ def main(args=None):
             'outliers': 0,
             'time_error': 0,
             'histogram': [0] * args.width,
+            'start-timestamp': None,
+            'end-timestamp': None,
         }
     }
 

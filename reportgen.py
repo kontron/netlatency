@@ -49,13 +49,16 @@ def plot(args, data):
     ax.bar(x, y)
     plt.yscale('log')
 
-    plt.title('counts: %s, min: %s $\mu$s, max: %s $\mu$s outliers: %s' \
-            % (counts, min_val, max_val, outliers))
+    plt.title('start: %s,\nend: %s,\ncounts: %s, min: %s $\mu$s, max: %s $\mu$s outliers: %s' \
+            % (data['start-timestamp'], data['end-timestamp'], counts, min_val, max_val, outliers))
 
     if args.outfile:
         plt.savefig(args.outfile)
     else:
-        plt.show()
+        try:
+            plt.show()
+        except KeyboardInterrupt:
+            pass
 
 
 def main(args=None):
@@ -66,22 +69,24 @@ def main(args=None):
     parser.add_argument('outfile', nargs='?', type=str, default=None)
     args = parser.parse_args(args)
 
+    j = None
     try:
         for line in args.infile:
             try:
                 j = json.loads(line)
-
-                if j['type'] == 'histogram':
-                    plot(args, j['object'])
-                    break
+            except ValueError:
+                pass
+    except KeyboardInterrupt:
+        for line in args.infile:
+            try:
+                j = json.loads(line)
             except ValueError:
                 pass
 
-        print("No valid histogram data found")
-        sys.exit(1)
+    if j:
+        if j['type'] == 'histogram':
+            plot(args, j['object'])
 
-    except KeyboardInterrupt as e:
-        sys.exit(1)
 
 if __name__ == '__main__':
     main()

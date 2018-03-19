@@ -44,7 +44,8 @@ def calc_latency(rx_packet):
     result['type'] = 'latency'
     result['object'] = {
         'latency-user-hw': int(diff_user_hw),
-        'latency-user-user': int(diff_user_user)
+        'latency-user-user': int(diff_user_user),
+        'tx-user-timestamp': rx_packet['tx-user-timestamp'],
     }
     return result
 

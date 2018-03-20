@@ -22,3 +22,6 @@ A network latency measurement toolset.
 %files
 /usr/bin/netlatency-rx
 /usr/bin/netlatency-tx
+/usr/bin/latency
+/usr/bin/reportgen
+/usr/bin/histogen

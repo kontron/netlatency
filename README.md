@@ -1,6 +1,6 @@
 # Netlatency
 
-The netlatency toolset is used to measure the latency and jitter parameters of an ethernet connection.
+The netlatency toolset is used to measure the latency and jitter parameters of an ethernet connection. The netlatency-tx generates UDP packets with embedded system timestamp (tx-user) and sequence number. The netlantency-rx captures these packets and dumps the collected receiving information such as hardware timestamp from the linux stack and the receiving system time (rx-user). netlatency-ry can detect receiving errors (dropped packets or sequence error).
 
 ## netlatency-tx
 
@@ -128,12 +128,19 @@ output from latency
         "min":,
         "max":,
         "outliers": ,
+        "start-timestamp",
         "histogram": [0, 0, ...., 0],
       }
     }
 
 
+## Helper: reportgen
+
+reportgen creates a plot from the output of histogen. Input is STDIN by default and also can be
+set by '-'. If no output is specified matplotlib will open a plot window (only if DISPLAY is available). Otherwise a PNG image is created.
+
 ## Usage Examples
+
 
 ### Receive testpackets and send with socat to UDP port
 
@@ -149,4 +156,4 @@ On client site:
 
 ### Receive testpackets, calc latency, generate histogram and plot
 
-    $ ./netlatency-rx enp2s0 -c 10000 -v | ./latency.py -  | ./histogen.py  | ./reportgen.py
+    $ netlatency-rx enp2s0 -c 10000 -v | latency -  | histogen  | reportgen

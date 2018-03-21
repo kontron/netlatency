@@ -95,6 +95,8 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
 
 ## Helper: latency
 
+	usage: latency [-h] [infile]
+
 ### Input
 
 output from netlatency-rx
@@ -114,6 +116,8 @@ output from netlatency-rx
 
 
 ## Helper: histogen
+
+	usage: histogen [-h] [-c COUNT] [--width WIDTH] [infile]
 
 ### Input
 
@@ -139,6 +143,9 @@ output from latency
 reportgen creates a plot from the output of histogen. Input is STDIN by default and also can be
 set by '-'. If no output is specified matplotlib will open a plot window (only if DISPLAY is available). Otherwise a PNG image is created.
 
+
+    usage: reportgen [-h] [infile] [outfile]
+
 ## Usage Examples
 
 
@@ -154,6 +161,10 @@ On client site:
     $ socat - udp4-listen:5000,reuseaddr,fork
 
 
-### Receive testpackets, calc latency, generate histogram and plot
+### Receive testpackets, calc latency, generate histogram and plot on screen
 
     $ netlatency-rx enp2s0 -c 10000 -v | latency -  | histogen  | reportgen
+
+### Receive testpackets, calc latency, generate histogram and plot in file
+
+    $ netlatency-rx enp2s0 -c 10000 -v | latency -  | histogen  | reportgen - /tmp/plot.png

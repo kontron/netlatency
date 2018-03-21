@@ -70,10 +70,12 @@ def update_histogram(json, output):
 def main(args=None):
     parser = argparse.ArgumentParser(
         description='histogen')
-    parser.add_argument('-c', '--count', type=int, dest='count', default=0)
-    parser.add_argument('--width', type=int, dest='width', default=100)
+    parser.add_argument('-c', '--count', type=int, dest='count',
+                        help='Count until histogram output', default=0)
+    parser.add_argument('--width', type=int, dest='width',
+                        help='Maximum width of histogram', default=100)
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
-                       default=sys.stdin)
+                        help='Input file (default is STDIN)', default=sys.stdin)
     args = parser.parse_args(args)
 
     output = None

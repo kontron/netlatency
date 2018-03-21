@@ -65,8 +65,10 @@ def main(args=None):
     parser = argparse.ArgumentParser(
         description='reportgen')
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
-                       default=sys.stdin)
-    parser.add_argument('outfile', nargs='?', type=str, default=None)
+                        help='Input file (default is STDIN)', default=sys.stdin)
+    parser.add_argument('outfile', nargs='?', type=str,
+                        help='Output file (default is None, open X window)',
+                        default=None)
     args = parser.parse_args(args)
 
     j = None

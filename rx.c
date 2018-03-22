@@ -60,7 +60,6 @@
 static gchar *help_description = NULL;
 static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
 static gint o_count = 0;
-static gint o_histogram = 0;
 static gint o_ptp_mode = FALSE;
 static gint o_quiet = 0;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
@@ -70,26 +69,6 @@ static gint o_version = 0;
 
 
 static gint do_shutdown = 0;
-
-#define HISTOGRAM_VALUES_MAX 1000
-struct histogram {
-    gint32 array[HISTOGRAM_VALUES_MAX];
-    gint32 outliers;
-    gint32 time_error;
-    gint32 min;
-    gint32 max;
-    gint32 count;
-    struct timespec start;
-    struct timespec end;
-};
-
-struct histogram histogram = {
-    .array = {0},
-    .outliers = 0,
-    .min = 0,
-    .max = 0,
-    .count = 0,
-};
 
 static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
 {
@@ -272,72 +251,6 @@ static char *dump_json_error(struct test_packet_result *result)
     return s;
 }
 
-static int update_histogram(struct test_packet_result *result)
-{
-    int latency_usec = result->latency_ts.tv_nsec/1000;
-
-    if (latency_usec > histogram.max || histogram.max == 0) {
-        histogram.max = latency_usec;
-    }
-    if (latency_usec < histogram.min || histogram.min == 0) {
-        histogram.min = latency_usec;
-    }
-
-    if (0 < latency_usec) {
-        histogram.time_error++;
-    } else if (latency_usec < o_histogram) {
-        histogram.array[latency_usec]++;
-    } else {
-        histogram.outliers++;
-    }
-
-    histogram.count++;
-
-    return 0;
-}
-
-static char *create_json_histogram(void)
-{
-    json_t *j, *a;
-    char *s;
-    int i;
-
-    a = json_array();
-
-    for (i = 0; i < o_histogram; i++) {
-        json_t *integer;
-        integer = json_integer(histogram.array[i]);
-        json_array_append(a, integer);
-        json_decref(integer);
-    }
-
-    j = json_pack("{sisisisisiso?}",
-                  "count", histogram.count,
-                  "min", histogram.min,
-                  "max", histogram.max,
-                  "outliers", histogram.outliers,
-                  "time_error", histogram.time_error,
-                  "histogram", a
-    );
-
-    s = json_dumps(j, JSON_COMPACT);
-    json_decref(j);
-
-    return s;
-}
-
-static void dump_json_histogram(void)
-{
-    char *histogram_str = NULL;
-    FILE *fd;
-
-    fd = stdout;
-    histogram_str = create_json_histogram();
-    fprintf(fd, "%s\n", histogram_str);
-    fflush(fd);
-    free(histogram_str);
-}
-
 static int handle_status_socket(int fd_socket, char *result_str)
 {
     int rc = 0;
@@ -434,7 +347,6 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
         switch (o_capture_ethertype) {
         case TEST_PACKET_ETHER_TYPE:
             handle_test_packet(msg, &result);
-            update_histogram(&result);
 
 
             if (result.dropped || result.seq_error) {
@@ -603,28 +515,6 @@ static gboolean parse_rx_filter_cb(const gchar *key, const gchar *value,
 }
 
 
-static gboolean parse_histogram_cb(const char *key, const char *value,
-        gpointer user_data, GError **error)
-{
-    gchar *endPtr;
-    (void)key;
-    (void)user_data;
-    (void)error;
-
-
-    if (value == NULL) {
-        o_histogram = HISTOGRAM_VALUES_MAX;
-    } else {
-        o_histogram = g_ascii_strtoull(value, &endPtr, 10);
-        if (o_histogram > HISTOGRAM_VALUES_MAX) {
-            o_histogram = HISTOGRAM_VALUES_MAX;
-        }
-    }
-
-    return TRUE;
-}
-
-
 static GOptionEntry entries[] = {
     { "verbose",   'v', 0, G_OPTION_ARG_NONE,
             &o_verbose, "Be verbose", NULL },
@@ -635,8 +525,6 @@ static GOptionEntry entries[] = {
             "Receive packet count", NULL },
     { "socket",    's', 0, G_OPTION_ARG_NONE,
             &o_socket, "Write packet results to socket", NULL },
-    { "histogram", 'h', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_CALLBACK,
-            parse_histogram_cb, "Write packet histogram in JSON format", NULL},
     { "ethertype", 'e', 0, G_OPTION_ARG_INT,
             &o_capture_ethertype, "Set ethertype to filter"
             "(Default is 0x0808, ETH_P_ALL is 0x3)", NULL },
@@ -677,16 +565,9 @@ static void signal_handler(int signal)
     switch (signal) {
     case SIGINT:
     case SIGTERM:
-        //do_shutdown++;
-        if (o_histogram) {
-            dump_json_histogram();
-        }
         exit(1);
     break;
     case SIGUSR1:
-        if (o_histogram) {
-            dump_json_histogram();
-        }
     break;
     default:
     break;
@@ -755,8 +636,7 @@ int main(int argc, char **argv)
     signal(SIGUSR1, signal_handler);
 
 
-    clock_gettime(CLOCK_REALTIME, &histogram.start);
-
+    gint64 count = 0;
     while (!do_shutdown) {
         struct msghdr msg;
         struct iovec iov;
@@ -779,15 +659,9 @@ int main(int argc, char **argv)
             handle_msg(&msg, fd_socket);
         }
 
-        if (o_count && histogram.count >= o_count) {
+        if (o_count && count >= o_count) {
             break;
         }
-    }
-
-    clock_gettime(CLOCK_REALTIME, &histogram.end);
-
-    if (o_histogram) {
-        dump_json_histogram();
     }
 
     close(fd);

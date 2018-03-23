@@ -1,4 +1,4 @@
-TEST_LIST := timer
+TEST_LIST := timer rx
 
 TEST_BINARIES = $(addprefix $(o)tests/test-,$(TEST_LIST))
 ALL_TARGETS += $(TEST_BINARIES)
@@ -16,6 +16,9 @@ $(o)tests/%.o: tests/%.c
 	$(call compile_tgt,tests)
 
 $(o)tests/test-timer: $(o)tests/test-timer.o
+	$(call link_tgt,tests)
+
+$(o)tests/test-rx: $(o)tests/test-rx.o
 	$(call link_tgt,tests)
 
 test-%: $(o)tests/test-%

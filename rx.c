@@ -193,7 +193,9 @@ static int handle_test_packet(struct msghdr *msg,
     timespec_diff(&tp->ts_tx_target, &result->rx_hw_ts, &result->latency_ts);
 
     /* calc absolut to interval begin */
-    result->abs_ns = result->rx_hw_ts.tv_nsec % (tp->interval_us * 1000);
+    if (tp->interval_us != 0) {
+        result->abs_ns = result->rx_hw_ts.tv_nsec % (tp->interval_us * 1000);
+    }
 
     /* calc dropped count and sequence error */
     check_sequence_num(tp->seq, &result->dropped, &result->seq_error);

@@ -255,7 +255,10 @@ static void *timer_thread(void *params)
         tp->interval_us = o_interval_ms * 1000;
         tp->packet_size = o_packet_size;
 
-        wait_for_next_timeslice(&interval, &next);
+        /* if interval is 0 send as fast as possible */
+        if (o_interval_ms != 0) {
+            wait_for_next_timeslice(&interval, &next);
+        }
 
         /* update new timestamp in packet */
         clock_gettime(CLOCK_REALTIME, &now);

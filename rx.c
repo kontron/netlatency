@@ -661,6 +661,7 @@ int main(int argc, char **argv)
             handle_msg(&msg, fd_socket);
         }
 
+        count++;
         if (o_count && count >= o_count) {
             break;
         }

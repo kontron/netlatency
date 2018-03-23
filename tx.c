@@ -255,7 +255,9 @@ static void *timer_thread(void *params)
         tp->interval_us = o_interval_ms * 1000;
         tp->packet_size = o_packet_size;
 
-        wait_for_next_timeslice(&interval, &next);
+        if (o_interval_ms != 0) {
+                wait_for_next_timeslice(&interval, &next);
+        }
 
         /* update new timestamp in packet */
         clock_gettime(CLOCK_REALTIME, &now);
@@ -267,12 +269,13 @@ static void *timer_thread(void *params)
         /* calc deviation from next expected timeslot */
         timespec_diff(&now, &next, &diff);
 
+		tp->seq++;
+		count++;
+
         if (o_count && count >= o_count) {
             do_shutdown++;
             break;
         }
-
-       tp->seq++;
     }
 
     return NULL;

@@ -48,6 +48,7 @@ static void test_check_sequence_num(void)
 
     /* initialize with sequence = 0 */
     rv = check_sequence_num(0, &dropped_packets, &sequence_error, FALSE);
+    g_assert_cmpint(rv, == , 0);
     g_assert_cmpint(dropped_packets, ==, 0);
     g_assert_false(sequence_error);
 
@@ -59,6 +60,7 @@ static void test_check_sequence_num(void)
 
     /* initialize with sequence = 0 */
     rv = check_sequence_num(8, &dropped_packets, &sequence_error, TRUE);
+    g_assert_cmpint(rv, == , 0);
     rv = check_sequence_num(10, &dropped_packets, &sequence_error, FALSE);
     g_assert_cmpint(rv, == , 1);
     g_assert_cmpint(dropped_packets, ==, 1);
@@ -67,6 +69,7 @@ static void test_check_sequence_num(void)
 
     /* initialize with sequence = 0 */
     rv = check_sequence_num(100, &dropped_packets, &sequence_error, TRUE);
+    g_assert_cmpint(rv, == , 0);
     rv = check_sequence_num(200, &dropped_packets, &sequence_error, FALSE);
     g_assert_cmpint(rv, == , 1);
     g_assert_cmpint(dropped_packets, ==, 99);
@@ -75,6 +78,7 @@ static void test_check_sequence_num(void)
 
     /* initialize with sequence = 0 */
     rv = check_sequence_num(200, &dropped_packets, &sequence_error, TRUE);
+    g_assert_cmpint(rv, == , 0);
     rv = check_sequence_num(100, &dropped_packets, &sequence_error, FALSE);
     g_assert_cmpint(rv, == , 1);
     g_assert_cmpint(dropped_packets, ==, -101);

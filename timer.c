@@ -38,7 +38,7 @@
 #include <glib.h>
 
 #define NSEC_PER_SEC 1000000000
-void timespec_diff(struct timespec *a, struct timespec *b,
+void timespec_diff(const struct timespec *a, const struct timespec *b,
                    struct timespec *result)
 {
 	gint64 diff;

@@ -135,10 +135,14 @@ static int client_socket[MAX_CLIENTS];
 static int max_fd;
 
 static int check_sequence_num(unsigned long seq, long *dropped_packets,
-        gboolean *sequence_error)
+        gboolean *sequence_error, gboolean reset_last_seq)
 {
     int rc = 0;
     static unsigned long last_seq = 0;
+
+    if (reset_last_seq) {
+        last_seq = 0;
+    }
 
     if (last_seq == 0) {
         last_seq = seq;
@@ -198,7 +202,7 @@ static int handle_test_packet(struct msghdr *msg,
     }
 
     /* calc dropped count and sequence error */
-    check_sequence_num(tp->seq, &result->dropped, &result->seq_error);
+    check_sequence_num(tp->seq, &result->dropped, &result->seq_error, FALSE);
 
     return 0;
 }
@@ -581,7 +585,7 @@ static void show_version(void)
     g_printf("%s\n", VERSION);
 }
 
-int main(int argc, char **argv)
+int real_main(int argc, char **argv)
 {
     int rc;
     int fd;
@@ -670,4 +674,10 @@ int main(int argc, char **argv)
     close(fd);
 
     return 0;
+}
+
+
+int main(int argc, char **argv)
+{
+    return real_main(argc, argv);
 }

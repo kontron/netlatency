@@ -15,6 +15,7 @@ PKG_CONFIG ?= pkg-config
 # install directories
 PREFIX ?= /usr
 BINDIR ?= $(PREFIX)/bin
+SBINDIR ?= $(PREFIX)/sbin
 INCLUDEDIR ?= $(PREFIX)/include
 LIBDIR ?= $(PREFIX)/lib
 
@@ -97,8 +98,8 @@ clean-rx:
 	rm -f $(rx_OBJECTS) $(o)rx
 
 install-rx: $(o)netlatency-rx
-	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
-	$(INSTALL) -m 0755 $(o)netlatency-rx $(DESTDIR)$(BINDIR)/
+	$(INSTALL) -d -m 0755 $(DESTDIR)$(SBINDIR)
+	$(INSTALL) -m 0755 $(o)netlatency-rx $(DESTDIR)$(SBINDIR)/
 
 
 tx_SOURCES := tx.c timer.c domain_socket.c
@@ -111,8 +112,8 @@ clean-tx:
 	rm -f $(tx_OBJECTS) $(o)tx
 
 install-tx: $(o)netlatency-tx
-	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
-	$(INSTALL) -m 0755 $(o)netlatency-tx $(DESTDIR)$(BINDIR)/
+	$(INSTALL) -d -m 0755 $(DESTDIR)$(SBINDIR)
+	$(INSTALL) -m 0755 $(o)netlatency-tx $(DESTDIR)$(SBINDIR)/
 
 
 install-scripts: $(HELPER_SCRIPTS)

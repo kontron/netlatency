@@ -85,12 +85,26 @@ static void test_check_sequence_num(void)
     g_assert_true(sequence_error);
 }
 
+static void test_is_broadcast_addr(void)
+{
+    guint8 addr[ETH_ALEN];
+
+    memcpy(&addr, "\xff\xff\xff\xff\xff\xff", ETH_ALEN);
+    g_assert_true(is_broadcast_addr(addr));
+
+    memcpy(&addr, "\xff\xff\xff\xff\xff\xfe", ETH_ALEN);
+    g_assert_false(is_broadcast_addr(addr));
+}
+
+
 int main(int argc, char** argv)
 {
 	g_test_init(&argc, &argv, NULL);
 
 	g_test_add_func("/rx/check_sequence_num",
             test_check_sequence_num);
+	g_test_add_func("/rx/is_broadcast_addr",
+            test_is_broadcast_addr);
 
 	return g_test_run();
 }

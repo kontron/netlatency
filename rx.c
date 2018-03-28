@@ -105,6 +105,11 @@ static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
     }
 }
 
+static gboolean is_broadcast_addr(guint8 *addr)
+{
+    return !memcmp(addr, "\xff\xff\xff\xff\xff\xff", ETH_ALEN);
+}
+
 #define BUF_SIZE 10*1024
 #define BUF_CONTROL_SIZE 1024
 static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
@@ -123,6 +128,9 @@ static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
 
     if (myaddr != NULL) {
         /* filter for own ether packets */
+        if (is_broadcast_addr(tp->hdr.ether_dhost)) {
+            return n;
+        }
         if (memcmp(myaddr->ether_addr_octet, tp->hdr.ether_dhost, ETH_ALEN)) {
             return -1;
         }
@@ -633,7 +641,6 @@ int real_main(int argc, char **argv)
             close(fd);
             exit(EXIT_FAILURE);
         }
-        src_eth_addr = &my_eth_addr;
     }
 
     if (o_socket) {

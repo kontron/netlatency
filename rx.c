@@ -32,6 +32,7 @@
 #include <linux/sockios.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -412,6 +413,7 @@ int open_capture_interface(gchar *ifname)
     int fd;
     struct ifreq ifr;
     int opt;
+    struct sockaddr_ll sock_address;
 
     fd = socket(PF_PACKET, SOCK_RAW, htons(o_capture_ethertype));
     if (fd < 0) {
@@ -458,11 +460,15 @@ int open_capture_interface(gchar *ifname)
     }
 
     /* Bind to device */
-    rc = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, ifname, IFNAMSIZ-1);
-    if (rc == -1) {
-        perror("setsockopt() ... bind to device");
+    memset(&sock_address, 0, sizeof(sock_address));
+    sock_address.sll_family = PF_PACKET;
+    sock_address.sll_protocol = htons(ETH_P_ALL);
+    sock_address.sll_ifindex = if_nametoindex(ifname);
+
+    if (bind(fd, (struct sockaddr*) &sock_address, sizeof(sock_address)) < 0) {
+        perror("bind failed\n");
         close(fd);
-        return -1;
+        return -4;
     }
 
     return fd;

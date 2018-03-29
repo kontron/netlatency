@@ -470,7 +470,7 @@ int open_capture_interface(gchar *ifname)
     /* Bind to device */
     memset(&sock_address, 0, sizeof(sock_address));
     sock_address.sll_family = PF_PACKET;
-    sock_address.sll_protocol = htons(ETH_P_ALL);
+    sock_address.sll_protocol = htons(o_capture_ethertype);
     sock_address.sll_ifindex = if_nametoindex(ifname);
 
     if (bind(fd, (struct sockaddr*) &sock_address, sizeof(sock_address)) < 0) {

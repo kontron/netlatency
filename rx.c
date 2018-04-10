@@ -177,6 +177,7 @@ struct test_packet_result {
     uint32_t interval_us;
     uint32_t packet_size;
 
+    struct timespec tx_user_target_ts;
     struct timespec tx_user_ts;
     struct timespec rx_hw_ts;
     struct timespec rx_user_ts;
@@ -201,6 +202,7 @@ static int handle_test_packet(struct msghdr *msg,
     result->interval_us = tp->interval_us;
     result->packet_size = tp->packet_size;
     memcpy(&result->tx_user_ts, &tp->ts_tx, sizeof(struct timespec));
+    memcpy(&result->tx_user_target_ts, &tp->ts_tx_target, sizeof(struct timespec));
 
     /* calc diff between timestamp in testpacket hardware timestamp */
     timespec_diff(&tp->ts_tx_target, &result->rx_hw_ts, &result->latency_ts);
@@ -221,24 +223,28 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     json_t *j;
     char *s;
     char *s_tx_user;
+    char *s_tx_user_target;
     char *s_rx_hw;
     char *s_rx_user;
 
     s_tx_user = timespec_to_iso_string(&result->tx_user_ts);
+    s_tx_user_target = timespec_to_iso_string(&result->tx_user_target_ts);
     s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
     s_rx_user = timespec_to_iso_string(&result->rx_user_ts);
 
-    j = json_pack("{sss{sisissssss}}",
+    j = json_pack("{sss{sisissssssss}}",
                   "type", "rx-packet",
                   "object",
                   "sequence-number", result->seq,
                   "packet-size", result->packet_size,
                   "tx-user-timestamp", s_tx_user,
+                  "tx-user-target-timestamp", s_tx_user_target,
                   "rx-hw-timestamp", s_rx_hw,
                   "rx-user-timestamp", s_rx_user
     );
 
     g_free(s_tx_user);
+    g_free(s_tx_user_target);
     g_free(s_rx_hw);
     g_free(s_rx_user);
 

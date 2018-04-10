@@ -68,6 +68,7 @@ The netlatency toolset is used to measure the latency and jitter parameters of a
         "sequence-number": 1,
         "packet-size": 64,
         "tx-user-timestamp": "",
+        "tx-user-target-timestamp": "",
         "rx-hw-timestamp" "",
         "rx-user-timestamp" "",
       }

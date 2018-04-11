@@ -62,6 +62,7 @@ static gchar *help_description = NULL;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_count = 0;
 static gint o_interval_ms = 1000;
+static gint o_interval_offset_usec = 0;
 static gint o_memlock = 1;
 static gint o_packet_size = -1;
 static gint o_sched_prio = 99;
@@ -127,6 +128,9 @@ static GOptionEntry entries[] = {
     { "prio",        'p', 0, G_OPTION_ARG_INT,
             &o_sched_prio,
             "Set scheduler priority (default is 99)", NULL },
+    { "offset",      'O', 0, G_OPTION_ARG_INT,
+            &o_interval_offset_usec,
+            "Set timer interval offset value in usec", NULL },
     { "queue-prio",  'Q', 0, G_OPTION_ARG_INT,
             &o_queue_prio,
             "Set skb priority", NULL },
@@ -257,7 +261,7 @@ static void *timer_thread(void *params)
 
         /* if interval is 0 send as fast as possible */
         if (o_interval_ms != 0) {
-            wait_for_next_timeslice(&interval, &next);
+            wait_for_next_timeslice(&interval, o_interval_offset_usec, &next);
         }
 
         /* update new timestamp in packet */

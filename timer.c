@@ -52,7 +52,7 @@ void timespec_diff(const struct timespec *a, const struct timespec *b,
 #define TIME_BEFORE_NS 300000
 
 int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
-        struct timespec *interval)
+        struct timespec *interval, gint offset_usec)
 {
 	gint64 interval_ns = interval->tv_nsec;
 
@@ -66,10 +66,12 @@ int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
 			((now->tv_nsec / interval_ns) + 1) * interval_ns;
 	}
 
+        next->tv_nsec += (offset_usec * 1000);
+
 	return 0;
 }
 
-void wait_for_next_timeslice(struct timespec *interval,
+void wait_for_next_timeslice(struct timespec *interval, gint offset_usec,
 		struct timespec *next)
 {
 	int rc;
@@ -81,7 +83,7 @@ void wait_for_next_timeslice(struct timespec *interval,
 	}
 
 	/* calculate wanted target time */
-	get_timeval_to_next_slice(&ts_now, &ts_target, interval);
+	get_timeval_to_next_slice(&ts_now, &ts_target, interval, offset_usec);
 	if (next != NULL) {
 		memcpy(next, &ts_target, sizeof(struct timespec));
 	}

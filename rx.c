@@ -179,7 +179,8 @@ static int check_sequence_num(guint32 stream_id, guint32 seq,
 
 struct test_packet_result {
     guint32 seq;
-    guint32 interval_us;
+    guint32 interval_usec;
+    guint32 offset_usec;
     guint32 stream_id;
     guint32 packet_size;
 
@@ -188,7 +189,6 @@ struct test_packet_result {
     struct timespec rx_hw_ts;
     struct timespec rx_user_ts;
     struct timespec latency_ts;
-    guint32 abs_ns;
 
     gint dropped;
     gboolean seq_error;
@@ -205,7 +205,8 @@ static int handle_test_packet(struct msghdr *msg,
 
     /* copy info from testpacket */
     result->seq = tp->seq;
-    result->interval_us = tp->interval_us;
+    result->interval_usec = tp->interval_usec;
+    result->offset_usec = tp->offset_usec;
     result->packet_size = tp->packet_size;
     result->stream_id = tp->stream_id;
     memcpy(&result->tx_user_ts, &tp->ts_tx, sizeof(struct timespec));
@@ -213,11 +214,6 @@ static int handle_test_packet(struct msghdr *msg,
 
     /* calc diff between timestamp in testpacket hardware timestamp */
     timespec_diff(&tp->ts_tx_target, &result->rx_hw_ts, &result->latency_ts);
-
-    /* calc absolut to interval begin */
-    if (tp->interval_us != 0) {
-        result->abs_ns = result->rx_hw_ts.tv_nsec % (tp->interval_us * 1000);
-    }
 
     /* calc dropped count and sequence error */
     check_sequence_num(tp->stream_id, tp->seq, &result->dropped,
@@ -245,7 +241,8 @@ static char *dump_json_test_packet(struct test_packet_result *result)
                   "object",
                   "stream-id", result->stream_id,
                   "sequence-number", result->seq,
-                  "interval-usec", result->interval_us,
+                  "interval-usec", result->interval_usec,
+                  "offset-usec", result->offset_usec,
                   "packet-size", result->packet_size,
                   "tx-user-timestamp", s_tx_user,
                   "tx-user-target-timestamp", s_tx_user_target,

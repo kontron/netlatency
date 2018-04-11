@@ -257,7 +257,8 @@ static void *timer_thread(void *params)
     interval.tv_sec = 0;
     interval.tv_nsec = o_interval_ms * 1000000;
 
-    tp->interval_us = o_interval_ms * 1000;
+    tp->interval_usec = o_interval_ms * 1000;
+    tp->offset_usec = o_interval_offset_usec;
     tp->packet_size = o_packet_size;
     tp->stream_id = o_stream_id;
 

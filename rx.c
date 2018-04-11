@@ -175,6 +175,7 @@ static int check_sequence_num(unsigned long seq, long *dropped_packets,
 struct test_packet_result {
     uint32_t seq;
     uint32_t interval_us;
+    uint32_t stream_id;
     uint32_t packet_size;
 
     struct timespec tx_user_target_ts;
@@ -201,6 +202,7 @@ static int handle_test_packet(struct msghdr *msg,
     result->seq = tp->seq;
     result->interval_us = tp->interval_us;
     result->packet_size = tp->packet_size;
+    result->stream_id = tp->stream_id;
     memcpy(&result->tx_user_ts, &tp->ts_tx, sizeof(struct timespec));
     memcpy(&result->tx_user_target_ts, &tp->ts_tx_target, sizeof(struct timespec));
 
@@ -235,6 +237,7 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     j = json_pack("{sss{sisissssssss}}",
                   "type", "rx-packet",
                   "object",
+                  "stream-id", result->stream_id,
                   "sequence-number", result->seq,
                   "packet-size", result->packet_size,
                   "tx-user-timestamp", s_tx_user,

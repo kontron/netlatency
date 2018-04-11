@@ -66,6 +66,7 @@ static gint o_interval_offset_usec = 0;
 static gint o_memlock = 1;
 static gint o_packet_size = -1;
 static gint o_sched_prio = 99;
+static gint o_stream_id = 0;
 static gint o_verbose = 0;
 static gint o_version = 0;
 static int o_queue_prio = -1;
@@ -116,7 +117,10 @@ static GOptionEntry entries[] = {
     { "interval",    'i', 0, G_OPTION_ARG_INT,
             &o_interval_ms,
             "Interval in milli seconds (default is 1000msec)", NULL },
-    { "count",    'c', 0, G_OPTION_ARG_INT,
+    { "stream-id",   'I', 0, G_OPTION_ARG_INT,
+            &o_stream_id,
+            "Interval in milli seconds (default is 1000msec)", NULL },
+    { "count",       'c', 0, G_OPTION_ARG_INT,
             &o_count,
             "Transmit packet count", NULL },
     { "memlock",     'm', 0, G_OPTION_ARG_INT,
@@ -253,10 +257,12 @@ static void *timer_thread(void *params)
     interval.tv_sec = 0;
     interval.tv_nsec = o_interval_ms * 1000000;
 
+    tp->interval_us = o_interval_ms * 1000;
+    tp->packet_size = o_packet_size;
+    tp->stream_id = o_stream_id;
+
     while (!do_shutdown) {
 
-        tp->interval_us = o_interval_ms * 1000;
-        tp->packet_size = o_packet_size;
 
         /* if interval is 0 send as fast as possible */
         if (o_interval_ms != 0) {

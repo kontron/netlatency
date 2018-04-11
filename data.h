@@ -39,6 +39,7 @@ struct ether_testpacket {
 	uint32_t seq;
 	uint32_t interval_us;
 	uint32_t packet_size;
+	uint32_t stream_id;
 };
 
 #endif

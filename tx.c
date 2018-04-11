@@ -264,9 +264,9 @@ static void *timer_thread(void *params)
         }
 
         /* update new timestamp in packet */
+        memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
         clock_gettime(CLOCK_REALTIME, &now);
         memcpy(&tp->ts_tx, &now, sizeof(struct timespec));
-        memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
 
         write(parm->fd, buf, o_packet_size);
 

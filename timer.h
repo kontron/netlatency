@@ -28,13 +28,13 @@
 #define __TIMER_H__
 
 void timespec_diff(const struct timespec *a, const struct timespec *b,
-                   struct timespec *result);
+        struct timespec *result);
 
 int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
         struct timespec *interval, gint offset_usec);
 
 void wait_for_next_timeslice(struct timespec *interval, gint offset_usec,
-		struct timespec *ts_desired);
+        struct timespec *ts_desired);
 
 char *timespec_to_iso_string(struct timespec *time);
 

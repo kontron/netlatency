@@ -41,11 +41,11 @@
 void timespec_diff(const struct timespec *a, const struct timespec *b,
                    struct timespec *result)
 {
-	gint64 diff;
-	diff = NSEC_PER_SEC * (gint64)((gint64) b->tv_sec - (gint64) a->tv_sec);;
-	diff += ((gint64) b->tv_nsec - (gint64) a->tv_nsec);
-	result->tv_sec = diff / NSEC_PER_SEC;
-	result->tv_nsec = diff % NSEC_PER_SEC;
+    gint64 diff;
+    diff = NSEC_PER_SEC * (gint64)((gint64) b->tv_sec - (gint64) a->tv_sec);;
+    diff += ((gint64) b->tv_nsec - (gint64) a->tv_nsec);
+    result->tv_sec = diff / NSEC_PER_SEC;
+    result->tv_nsec = diff % NSEC_PER_SEC;
 }
 
 
@@ -54,48 +54,48 @@ void timespec_diff(const struct timespec *a, const struct timespec *b,
 int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
         struct timespec *interval, gint offset_usec)
 {
-	gint64 interval_ns = interval->tv_nsec;
+    gint64 interval_ns = interval->tv_nsec;
 
-	if ((now->tv_nsec + interval_ns) >= 1000000000) {
-		next->tv_sec = now->tv_sec + 1;
-		next->tv_nsec = 0;
+    if ((now->tv_nsec + interval_ns) >= 1000000000) {
+        next->tv_sec = now->tv_sec + 1;
+        next->tv_nsec = 0;
 
-	} else {
-		next->tv_sec = now->tv_sec;
-		next->tv_nsec =
-			((now->tv_nsec / interval_ns) + 1) * interval_ns;
-	}
+    } else {
+        next->tv_sec = now->tv_sec;
+        next->tv_nsec =
+            ((now->tv_nsec / interval_ns) + 1) * interval_ns;
+    }
 
         next->tv_nsec += (offset_usec * 1000);
 
-	return 0;
+    return 0;
 }
 
 void wait_for_next_timeslice(struct timespec *interval, gint offset_usec,
-		struct timespec *next)
+        struct timespec *next)
 {
-	int rc;
-	struct timespec ts_now;
-	struct timespec ts_target;
+    int rc;
+    struct timespec ts_now;
+    struct timespec ts_target;
 
-	if (clock_gettime(CLOCK_REALTIME, &ts_now)) {
-		perror("clock_gettime");
-	}
+    if (clock_gettime(CLOCK_REALTIME, &ts_now)) {
+        perror("clock_gettime");
+    }
 
-	/* calculate wanted target time */
-	get_timeval_to_next_slice(&ts_now, &ts_target, interval, offset_usec);
-	if (next != NULL) {
-		memcpy(next, &ts_target, sizeof(struct timespec));
-	}
+    /* calculate wanted target time */
+    get_timeval_to_next_slice(&ts_now, &ts_target, interval, offset_usec);
+    if (next != NULL) {
+        memcpy(next, &ts_target, sizeof(struct timespec));
+    }
 
-	rc = clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts_target, NULL);
-	if (rc != 0) {
-		if (rc != EINTR) {
-			perror("clock_nanosleep failed");
-		}
-	}
+    rc = clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &ts_target, NULL);
+    if (rc != 0) {
+        if (rc != EINTR) {
+            perror("clock_nanosleep failed");
+        }
+    }
 
-	return;
+    return;
 }
 
 char *timespec_to_iso_string(struct timespec *time)

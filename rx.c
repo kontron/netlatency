@@ -559,18 +559,18 @@ static GOptionEntry entries[] = {
             &o_quiet, "Suppress error messages", NULL },
     { "count",    'c', 0, G_OPTION_ARG_INT,
             &o_count,
-            "Receive packet count", NULL },
+            "Receive packet count", "COUNT" },
     { "socket",    's', 0, G_OPTION_ARG_NONE,
             &o_socket, "Write packet results to socket", NULL },
     { "ethertype", 'e', 0, G_OPTION_ARG_INT,
             &o_capture_ethertype, "Set ethertype to filter"
-            "(Default is 0x0808, ETH_P_ALL is 0x3)", NULL },
+            " (Default is 0x0808, ETH_P_ALL is 0x3)", "TYPE" },
     { "rxfilter", 'f', 0, G_OPTION_ARG_CALLBACK,
-            parse_rx_filter_cb, "Set hw rx filterfilter", NULL },
-    { "ptp", 'p', 0, G_OPTION_ARG_CALLBACK,
-            parse_rx_filter_cb, "Set hw rx filterfilter", NULL },
+            parse_rx_filter_cb, "Set HW rx filter", "FILTER" },
+    { "ptp", 'p', 0, G_OPTION_ARG_NONE,
+            &o_ptp_mode, "Set HW rx filter to PTP packets", NULL },
     { "version",   'V', 0, G_OPTION_ARG_NONE,
-            &o_version, "Show version inforamtion and exit", NULL },
+            &o_version, "Show version information and exit", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -579,7 +579,7 @@ gint parse_command_line_options(gint *argc, char **argv)
     GError *error = NULL;
     GOptionContext *context;
 
-    context = g_option_context_new("DEVICE - receive timestamped test packets");
+    context = g_option_context_new("DEVICE - receive ethernet test packets");
 
     g_option_context_add_main_entries(context, entries, NULL);
     g_option_context_set_description(context,

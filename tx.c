@@ -242,7 +242,6 @@ static void *timer_thread(void *params)
     struct timespec now;
     struct timespec next;
     struct timespec interval;
-    struct timespec diff;
     gint64 count = 0;
 
     memset(&schedp, 0, sizeof(schedp));
@@ -270,9 +269,6 @@ static void *timer_thread(void *params)
         memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
 
         write(parm->fd, buf, o_packet_size);
-
-        /* calc deviation from next expected timeslot */
-        timespec_diff(&now, &next, &diff);
 
 		tp->seq++;
 		count++;

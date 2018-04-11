@@ -270,8 +270,8 @@ static void *timer_thread(void *params)
 
         write(parm->fd, buf, o_packet_size);
 
-		tp->seq++;
-		count++;
+        tp->seq++;
+        count++;
 
         if (o_count && count >= o_count) {
             do_shutdown++;

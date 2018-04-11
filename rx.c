@@ -236,7 +236,7 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
     s_rx_user = timespec_to_iso_string(&result->rx_user_ts);
 
-    j = json_pack("{sss{sisisisissssssss}}",
+    j = json_pack("{sss{sisisisisissssssss}}",
                   "type", "rx-packet",
                   "object",
                   "stream-id", result->stream_id,

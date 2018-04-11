@@ -240,11 +240,12 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
     s_rx_user = timespec_to_iso_string(&result->rx_user_ts);
 
-    j = json_pack("{sss{sisisissssssss}}",
+    j = json_pack("{sss{sisisisissssssss}}",
                   "type", "rx-packet",
                   "object",
                   "stream-id", result->stream_id,
                   "sequence-number", result->seq,
+                  "interval-usec", result->interval_us,
                   "packet-size", result->packet_size,
                   "tx-user-timestamp", s_tx_user,
                   "tx-user-target-timestamp", s_tx_user_target,

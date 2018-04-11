@@ -63,7 +63,6 @@ static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_count = 0;
 static gint o_interval_ms = 1000;
 static gint o_interval_offset_usec = 0;
-static gint o_memlock = 1;
 static gint o_packet_size = -1;
 static gint o_sched_prio = 99;
 static gint o_stream_id = 0;
@@ -119,13 +118,10 @@ static GOptionEntry entries[] = {
             "Interval in milli seconds (default is 1000msec)", NULL },
     { "stream-id",   'I', 0, G_OPTION_ARG_INT,
             &o_stream_id,
-            "Interval in milli seconds (default is 1000msec)", NULL },
+            "Set stream id. (default is 0)", NULL },
     { "count",       'c', 0, G_OPTION_ARG_INT,
             &o_count,
             "Transmit packet count", NULL },
-    { "memlock",     'm', 0, G_OPTION_ARG_INT,
-            &o_memlock,
-            "Configure memlock (default is 1)", NULL },
     { "padding",     'P', 0, G_OPTION_ARG_INT,
             &o_packet_size,
             "Set the packet size", NULL },
@@ -143,7 +139,7 @@ static GOptionEntry entries[] = {
             "Be verbose", NULL },
     { "version",     'V', 0, G_OPTION_ARG_NONE,
             &o_version,
-            "Show version inforamtion and exit", NULL },
+            "Show version information and exit", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -220,9 +216,7 @@ void signal_handler(int signal)
     switch (signal) {
     case SIGINT:
     case SIGTERM:
-        if (o_memlock) {
-            munlockall();
-        }
+        munlockall();
         do_shutdown++;
     break;
     case SIGUSR1:
@@ -338,11 +332,9 @@ int main(int argc, char **argv)
     set_latency_target(latency_target_value);
 
 
-    if (o_memlock) {
-        if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
-            perror("mlockal");
-            exit(-2);
-        }
+    if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1) {
+        perror("mlockal");
+        exit(-2);
     }
 
     memset(tp, 0, sizeof(struct ether_testpacket));

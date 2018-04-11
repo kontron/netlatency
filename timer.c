@@ -37,6 +37,21 @@
 
 #include <glib.h>
 
+
+#ifndef TIMEVAL_TO_TIMESPEC
+#define TIMEVAL_TO_TIMESPEC(tv, ts) {          \
+        (ts)->tv_sec = (tv)->tv_sec;           \
+        (ts)->tv_nsec = (tv)->tv_usec * 1000;  \
+}
+#endif
+
+#ifndef TIMESPEC_TO_TIMEVAL
+#define TIMESPEC_TO_TIMEVAL(tv, ts) {          \
+        (tv)->tv_sec = (ts)->tv_sec;           \
+        (tv)->tv_usec = (ts)->tv_nsec / 1000;  \
+}
+#endif
+
 #define NSEC_PER_SEC 1000000000
 void timespec_diff(const struct timespec *a, const struct timespec *b,
                    struct timespec *result)
@@ -51,8 +66,8 @@ void timespec_diff(const struct timespec *a, const struct timespec *b,
 
 #define TIME_BEFORE_NS 300000
 
-int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
-        struct timespec *interval, gint offset_usec)
+static int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
+        struct timespec *interval)
 {
     gint64 interval_ns = interval->tv_nsec;
 
@@ -66,13 +81,11 @@ int get_timeval_to_next_slice(struct timespec *now, struct timespec *next,
             ((now->tv_nsec / interval_ns) + 1) * interval_ns;
     }
 
-        next->tv_nsec += (offset_usec * 1000);
-
     return 0;
 }
 
 void wait_for_next_timeslice(struct timespec *interval, gint offset_usec,
-        struct timespec *next)
+        struct timespec *next, struct timespec *t0)
 {
     int rc;
     struct timespec ts_now;
@@ -83,7 +96,13 @@ void wait_for_next_timeslice(struct timespec *interval, gint offset_usec,
     }
 
     /* calculate wanted target time */
-    get_timeval_to_next_slice(&ts_now, &ts_target, interval, offset_usec);
+    get_timeval_to_next_slice(&ts_now, &ts_target, interval);
+
+    if (t0 != NULL) {
+        memcpy(next, &t0, sizeof(struct timespec));
+    }
+
+    ts_target.tv_nsec += (offset_usec * 1000);
     if (next != NULL) {
         memcpy(next, &ts_target, sizeof(struct timespec));
     }

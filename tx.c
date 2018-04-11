@@ -239,6 +239,7 @@ static void *timer_thread(void *params)
     struct sched_param schedp;
     struct timespec now;
     struct timespec next;
+    struct timespec t0;
     struct timespec interval;
     gint64 count = 0;
 
@@ -261,10 +262,12 @@ static void *timer_thread(void *params)
 
         /* if interval is 0 send as fast as possible */
         if (o_interval_ms != 0) {
-            wait_for_next_timeslice(&interval, o_interval_offset_usec, &next);
+            wait_for_next_timeslice(&interval, o_interval_offset_usec,
+                    &next, &t0);
         }
 
         /* update new timestamp in packet */
+        memcpy(&tp->ts_t0, &next, sizeof(struct timespec));
         memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
         clock_gettime(CLOCK_REALTIME, &now);
         memcpy(&tp->ts_tx, &now, sizeof(struct timespec));

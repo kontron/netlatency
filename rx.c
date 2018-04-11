@@ -184,6 +184,7 @@ struct test_packet_result {
     guint32 stream_id;
     guint32 packet_size;
 
+    struct timespec ts_t0;
     struct timespec tx_user_target_ts;
     struct timespec tx_user_ts;
     struct timespec rx_hw_ts;
@@ -209,6 +210,8 @@ static int handle_test_packet(struct msghdr *msg,
     result->offset_usec = tp->offset_usec;
     result->packet_size = tp->packet_size;
     result->stream_id = tp->stream_id;
+
+    memcpy(&result->ts_t0, &tp->ts_t0, sizeof(struct timespec));
     memcpy(&result->tx_user_ts, &tp->ts_tx, sizeof(struct timespec));
     memcpy(&result->tx_user_target_ts, &tp->ts_tx_target, sizeof(struct timespec));
 
@@ -226,11 +229,13 @@ static char *dump_json_test_packet(struct test_packet_result *result)
 {
     json_t *j;
     char *s;
+    char *s_t0;
     char *s_tx_user;
     char *s_tx_user_target;
     char *s_rx_hw;
     char *s_rx_user;
 
+    s_t0 = timespec_to_iso_string(&result->ts_t0);
     s_tx_user = timespec_to_iso_string(&result->tx_user_ts);
     s_tx_user_target = timespec_to_iso_string(&result->tx_user_target_ts);
     s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
@@ -244,12 +249,14 @@ static char *dump_json_test_packet(struct test_packet_result *result)
                   "interval-usec", result->interval_usec,
                   "offset-usec", result->offset_usec,
                   "packet-size", result->packet_size,
+                  "t0-timestamp", s_t0,
                   "tx-user-timestamp", s_tx_user,
                   "tx-user-target-timestamp", s_tx_user_target,
                   "rx-hw-timestamp", s_rx_hw,
                   "rx-user-timestamp", s_rx_user
     );
 
+    g_free(s_t0);
     g_free(s_tx_user);
     g_free(s_tx_user_target);
     g_free(s_rx_hw);

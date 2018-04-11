@@ -99,7 +99,7 @@ void wait_for_next_timeslice(struct timespec *interval, gint offset_usec,
     get_timeval_to_next_slice(&ts_now, &ts_target, interval);
 
     if (t0 != NULL) {
-        memcpy(&ts_target, &t0, sizeof(struct timespec));
+        memcpy(t0, &ts_target, sizeof(struct timespec));
     }
 
     ts_target.tv_nsec += (offset_usec * 1000);

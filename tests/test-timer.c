@@ -130,7 +130,7 @@ static void test_get_timeval_to_next_slice(void)
 	now.tv_nsec = 0;
 	interval.tv_sec= 0;
 	interval.tv_nsec= 1000000;
-	get_timeval_to_next_slice(&now, &next, &interval, 0);
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 0);
 	g_assert_cmpint(next.tv_nsec, ==, 1000000);
 
@@ -138,7 +138,7 @@ static void test_get_timeval_to_next_slice(void)
 	now.tv_nsec = 990000;
 	interval.tv_sec = 0;
 	interval.tv_nsec = 1000000;
-	get_timeval_to_next_slice(&now, &next, &interval, 0);
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 0);
 	g_assert_cmpint(next.tv_nsec, ==, 1000000);
 
@@ -146,7 +146,7 @@ static void test_get_timeval_to_next_slice(void)
 	now.tv_nsec = 999000000;
 	interval.tv_sec = 0;
 	interval.tv_nsec = 1000000;
-	get_timeval_to_next_slice(&now, &next, &interval, 0);
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 1);
 	g_assert_cmpint(next.tv_nsec, ==, 0);
 
@@ -154,7 +154,7 @@ static void test_get_timeval_to_next_slice(void)
 	now.tv_nsec = 0;
 	interval.tv_sec = 0;
 	interval.tv_nsec = 1000000000;
-	get_timeval_to_next_slice(&now, &next, &interval, 0);
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 1);
 	g_assert_cmpint(next.tv_nsec, ==, 0);
 
@@ -162,7 +162,7 @@ static void test_get_timeval_to_next_slice(void)
 	now.tv_nsec = 500000000;
 	interval.tv_sec = 0;
 	interval.tv_nsec = 1000000000;
-	get_timeval_to_next_slice(&now, &next, &interval, 0);
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 1);
 	g_assert_cmpint(next.tv_nsec, ==, 0);
 
@@ -170,24 +170,9 @@ static void test_get_timeval_to_next_slice(void)
 	now.tv_nsec = 999030000;
 	interval.tv_sec = 0;
 	interval.tv_nsec = 1000000;
-	get_timeval_to_next_slice(&now, &next, &interval, 0);
+	get_timeval_to_next_slice(&now, &next, &interval);
 	g_assert_cmpint(next.tv_sec, ==, 1);
 	g_assert_cmpint(next.tv_nsec, ==, 0);
-}
-
-static void test_get_timeval_to_next_slice_offset(void)
-{
-	struct timespec now;
-	struct timespec next;
-	struct timespec interval;
-
-	now.tv_sec = 0;
-	now.tv_nsec = 0;
-	interval.tv_sec= 0;
-	interval.tv_nsec= 1000000;
-	get_timeval_to_next_slice(&now, &next, &interval, 500);
-	g_assert_cmpint(next.tv_sec, ==, 0);
-	g_assert_cmpint(next.tv_nsec, ==, 1500000);
 }
 
 static void test_timespec_to_iso_string(void)
@@ -334,9 +319,6 @@ int main(int argc, char** argv)
 
 	g_test_add_func("/timer/get_timeval_to_next_slice/valid",
 			test_get_timeval_to_next_slice);
-
-	g_test_add_func("/timer/get_timeval_to_next_slice/offset",
-			test_get_timeval_to_next_slice_offset);
 
 	g_test_add_func("/timer/timespec_to_iso_string/valid",
 			test_timespec_to_iso_string);

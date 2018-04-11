@@ -36,10 +36,10 @@ struct ether_testpacket {
 	struct ether_header hdr;
 	struct timespec ts_tx; /* timestamp before sending */
 	struct timespec ts_tx_target; /* timestamp of wished target time */
-	uint32_t seq;
-	uint32_t interval_us;
-	uint32_t packet_size;
-	uint32_t stream_id;
+	guint seq;
+	guint interval_us;
+	guint packet_size;
+	guint stream_id;
 };
 
 #endif

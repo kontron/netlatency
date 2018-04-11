@@ -139,53 +139,58 @@ static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
     return n;
 }
 
-#define MAX_CLIENTS 2
-static int client_socket[MAX_CLIENTS];
-static int max_fd;
+#define MAX_STREAM_ID 32
 
-static int check_sequence_num(unsigned long seq, long *dropped_packets,
-        gboolean *sequence_error, gboolean reset_last_seq)
+static int check_sequence_num(guint32 stream_id, guint32 seq,
+        gint32 *dropped_packets, gboolean *sequence_error,
+        gboolean reset_last_seq)
 {
-    int rc = 0;
-    static unsigned long last_seq = 0;
+    static guint32 last_seq_list[MAX_STREAM_ID] = {0};
+    guint32 *last_seq = NULL;
 
-    if (reset_last_seq) {
-        last_seq = 0;
+    if (stream_id > MAX_STREAM_ID) {
+        return -1;
     }
 
-    if (last_seq == 0) {
-        last_seq = seq;
+    last_seq = &last_seq_list[stream_id];
+
+    if (reset_last_seq) {
+        *last_seq = 0;
+    }
+
+    if (*last_seq == 0) {
+        *last_seq = seq;
         *dropped_packets = 0;
         *sequence_error = 0;
         return 0;
     }
 
-    *dropped_packets = seq - last_seq - 1;
-    *sequence_error = seq <= last_seq;
+    *dropped_packets = seq - *last_seq - 1;
+    *sequence_error = seq <= *last_seq;
+
+    *last_seq = seq;
 
     if (*dropped_packets || *sequence_error) {
-        rc = 1;
+        return 1;
     }
 
-    last_seq = seq;
-
-    return rc;
+    return 0;
 }
 
 struct test_packet_result {
-    uint32_t seq;
-    uint32_t interval_us;
-    uint32_t stream_id;
-    uint32_t packet_size;
+    guint32 seq;
+    guint32 interval_us;
+    guint32 stream_id;
+    guint32 packet_size;
 
     struct timespec tx_user_target_ts;
     struct timespec tx_user_ts;
     struct timespec rx_hw_ts;
     struct timespec rx_user_ts;
     struct timespec latency_ts;
-    uint32_t abs_ns;
+    guint32 abs_ns;
 
-    long dropped;
+    gint dropped;
     gboolean seq_error;
 };
 
@@ -215,7 +220,8 @@ static int handle_test_packet(struct msghdr *msg,
     }
 
     /* calc dropped count and sequence error */
-    check_sequence_num(tp->seq, &result->dropped, &result->seq_error, FALSE);
+    check_sequence_num(tp->stream_id, tp->seq, &result->dropped,
+            &result->seq_error, FALSE);
 
     return 0;
 }
@@ -234,7 +240,7 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
     s_rx_user = timespec_to_iso_string(&result->rx_user_ts);
 
-    j = json_pack("{sss{sisissssssss}}",
+    j = json_pack("{sss{sisisissssssss}}",
                   "type", "rx-packet",
                   "object",
                   "stream-id", result->stream_id,
@@ -274,6 +280,10 @@ static char *dump_json_error(struct test_packet_result *result)
 
     return s;
 }
+
+#define MAX_CLIENTS 2
+static int client_socket[MAX_CLIENTS];
+static int max_fd;
 
 static int handle_status_socket(int fd_socket, char *result_str)
 {

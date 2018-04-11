@@ -43,46 +43,86 @@ int open_server_socket(char *socket_path)
 static void test_check_sequence_num(void)
 {
     int rv;
-    long dropped_packets;
+    gint32 dropped_packets;
     gboolean sequence_error;
 
     /* initialize with sequence = 0 */
-    rv = check_sequence_num(0, &dropped_packets, &sequence_error, FALSE);
+    rv = check_sequence_num(0, 0, &dropped_packets, &sequence_error, FALSE);
     g_assert_cmpint(rv, == , 0);
     g_assert_cmpint(dropped_packets, ==, 0);
     g_assert_false(sequence_error);
 
-    rv = check_sequence_num(1, &dropped_packets, &sequence_error, FALSE);
+    rv = check_sequence_num(0, 1, &dropped_packets, &sequence_error, FALSE);
     g_assert_cmpint(rv, == , 0);
     g_assert_cmpint(dropped_packets, ==, 0);
     g_assert_false(sequence_error);
 
 
     /* initialize with sequence = 0 */
-    rv = check_sequence_num(8, &dropped_packets, &sequence_error, TRUE);
+    rv = check_sequence_num(0, 8, &dropped_packets, &sequence_error, TRUE);
     g_assert_cmpint(rv, == , 0);
-    rv = check_sequence_num(10, &dropped_packets, &sequence_error, FALSE);
+    rv = check_sequence_num(0, 10, &dropped_packets, &sequence_error, FALSE);
     g_assert_cmpint(rv, == , 1);
     g_assert_cmpint(dropped_packets, ==, 1);
     g_assert_false(sequence_error);
 
 
     /* initialize with sequence = 0 */
-    rv = check_sequence_num(100, &dropped_packets, &sequence_error, TRUE);
+    rv = check_sequence_num(0, 100, &dropped_packets, &sequence_error, TRUE);
     g_assert_cmpint(rv, == , 0);
-    rv = check_sequence_num(200, &dropped_packets, &sequence_error, FALSE);
+    rv = check_sequence_num(0, 200, &dropped_packets, &sequence_error, FALSE);
     g_assert_cmpint(rv, == , 1);
     g_assert_cmpint(dropped_packets, ==, 99);
     g_assert_false(sequence_error);
 
 
     /* initialize with sequence = 0 */
-    rv = check_sequence_num(200, &dropped_packets, &sequence_error, TRUE);
+    rv = check_sequence_num(0, 200, &dropped_packets, &sequence_error, TRUE);
     g_assert_cmpint(rv, == , 0);
-    rv = check_sequence_num(100, &dropped_packets, &sequence_error, FALSE);
+    rv = check_sequence_num(0, 100, &dropped_packets, &sequence_error, FALSE);
     g_assert_cmpint(rv, == , 1);
     g_assert_cmpint(dropped_packets, ==, -101);
     g_assert_true(sequence_error);
+}
+
+static void test_check_sequence_num_with_stream_id(void)
+{
+    int rv;
+    gint32 dropped;
+    gboolean seq_err;
+
+    /* initialize with sequence = 0 */
+    rv = check_sequence_num(0, 0, &dropped, &seq_err, TRUE);
+    g_assert_cmpint(rv, == , 0);
+    rv = check_sequence_num(1, 0, &dropped, &seq_err, TRUE);
+    g_assert_cmpint(rv, == , 0);
+
+    rv = check_sequence_num(1, 1, &dropped, &seq_err, FALSE);
+    g_assert_cmpint(rv, == , 0);
+    rv = check_sequence_num(1, 2, &dropped, &seq_err, FALSE);
+    g_assert_cmpint(rv, == , 0);
+    rv = check_sequence_num(1, 3, &dropped, &seq_err, FALSE);
+    g_assert_cmpint(rv, == , 0);
+
+    rv = check_sequence_num(0, 1, &dropped, &seq_err, FALSE);
+    g_assert_cmpint(rv, == , 0);
+    rv = check_sequence_num(0, 2, &dropped, &seq_err, FALSE);
+    g_assert_cmpint(rv, == , 0);
+    rv = check_sequence_num(0, 3, &dropped, &seq_err, FALSE);
+    g_assert_cmpint(rv, == , 0);
+}
+
+static void test_check_sequence_num_stream_id_max(void)
+{
+    int rv;
+    gint32 dropped;
+    gboolean seq_err;
+
+    rv = check_sequence_num(32, 0, &dropped, &seq_err, TRUE);
+    g_assert_cmpint(rv, == , 0);
+
+    rv = check_sequence_num(33, 0, &dropped, &seq_err, TRUE);
+    g_assert_cmpint(rv, == , -1);
 }
 
 static void test_is_broadcast_addr(void)
@@ -101,8 +141,13 @@ int main(int argc, char** argv)
 {
 	g_test_init(&argc, &argv, NULL);
 
-	g_test_add_func("/rx/check_sequence_num",
+	g_test_add_func("/rx/check_sequence_num/valid",
             test_check_sequence_num);
+	g_test_add_func("/rx/check_sequence_num/stream_id",
+            test_check_sequence_num_with_stream_id);
+	g_test_add_func("/rx/check_sequence_num/stream_id_max",
+            test_check_sequence_num_stream_id_max);
+
 	g_test_add_func("/rx/is_broadcast_addr",
             test_is_broadcast_addr);
 

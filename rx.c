@@ -207,6 +207,7 @@ static int handle_test_packet(struct msghdr *msg,
     /* copy info from testpacket */
     result->seq = tp->seq;
     result->interval_usec = tp->interval_usec;
+    printf("int %d\n", result->interval_usec);
     result->offset_usec = tp->offset_usec;
     result->packet_size = tp->packet_size;
     result->stream_id = tp->stream_id;
@@ -241,7 +242,7 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
     s_rx_user = timespec_to_iso_string(&result->rx_user_ts);
 
-    j = json_pack("{sss{sisisisisissssssss}}",
+    j = json_pack("{sss{sisisisisissssssssss}}",
                   "type", "rx-packet",
                   "object",
                   "stream-id", result->stream_id,

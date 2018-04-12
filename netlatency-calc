@@ -1,0 +1,191 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2018, Kontron Europe GmbH
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+from __future__ import print_function
+
+import argparse
+import copy
+import dateutil.parser
+import json
+import numpy
+import sys
+
+
+def update_histogram(stream_id, timestamp, latency_usec, histogram):
+    histogram['count'] += 1
+    histogram['stream-id'] = stream_id
+
+    if latency_usec > histogram['max'] or histogram['max'] == 0:
+        histogram['max'] = latency_usec
+    if latency_usec < histogram['min'] or histogram['min'] == 0:
+        histogram['min'] = latency_usec
+
+    if latency_usec < 0:
+        histogram['time_error'] += 1
+    if latency_usec < len(histogram['histogram']):
+        histogram['histogram'][latency_usec] += 1
+    else:
+        histogram['outliers'] += 1
+
+
+    tx_timestamp = numpy.datetime64(timestamp)
+
+    if not histogram['start-timestamp']:
+        histogram['start-timestamp'] = timestamp
+
+    if not histogram['end-timestamp']:
+        histogram['end-timestamp'] = timestamp
+
+    if numpy.datetime64(timestamp) > \
+            numpy.datetime64(histogram['end-timestamp']):
+        histogram['end-timestamp'] = timestamp
+
+
+def calc_latency(pkt):
+    result = {}
+    interval_start = numpy.datetime64(pkt['interval-start-timestamp'])
+    # t0
+    tx_user_target = numpy.datetime64(pkt['tx-user-target-timestamp'])
+    # t1
+    tx_user = numpy.datetime64(pkt['tx-user-timestamp'])
+    # t4
+    rx_hw = numpy.datetime64(pkt['rx-hw-timestamp'])
+    # t5
+    rx_user = numpy.datetime64(pkt['rx-user-timestamp'])
+
+    #diff_user_hw = rx_hw - tx_user
+    #diff_user_user = rx_user - tx_user
+
+    # rt-application latency: (t1 - t0) % interval
+    diff_rt_app = tx_user - tx_user_target
+    diff_interval_start_hw_rx = rx_hw - interval_start
+
+    result['type'] = 'latency-calc'
+    result['object'] = {
+        'latency-rt-app': int(diff_rt_app)/1000 % pkt['interval-usec'],
+        'latency-scheduled-times': int(diff_interval_start_hw_rx)/1000 % pkt['interval-usec'],
+        'sequence-number': pkt['sequence-number'],
+        'tx-user-timestamp': pkt['tx-user-timestamp'],
+        'stream-id': pkt['stream-id'],
+    }
+    return result
+
+
+def dump_json_str(val):
+    print(json.dumps(val), file=sys.stdout)
+    sys.stdout.flush()
+
+
+def main(args=None):
+    parser = argparse.ArgumentParser(
+        description='latency')
+    parser.add_argument('-c', '--count', type=int, dest='count',
+                        help='Count until histogram output', default=0)
+    parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
+                        help='Input file (default is STDIN)', default=sys.stdin)
+    args = parser.parse_args(args)
+
+    output = None
+    histogram_rt_latency_empty = {
+        'type': 'histogram-rt-latency',
+        'object': {
+            'stream-id': 0,
+            'count': 0,
+            'min': 0,
+            'max': 0,
+            'outliers': 0,
+            'time_error': 0,
+            'histogram': [0] * 100,
+            'start-timestamp': None,
+            'end-timestamp': None,
+        }
+    }
+
+    histogram_scheduled_times_empty = {
+        'type': 'histogram-scheduled-times',
+        'object': {
+            'stream-id': 0,
+            'count': 0,
+            'min': 0,
+            'max': 0,
+            'outliers': 0,
+            'time_error': 0,
+            'histogram': [0] * 1000,
+            'start-timestamp': None,
+            'end-timestamp': None,
+        }
+    }
+
+    hist_rt_latency = copy.deepcopy(histogram_rt_latency_empty)
+    hist_scheduled_times = copy.deepcopy(histogram_scheduled_times_empty)
+
+    count = 0
+    try:
+        for line in args.infile:
+            try:
+                j = json.loads(line)
+
+                if j['type'] == 'rx-error':
+                    print(line, file=sys.stdout)
+                elif j['type'] == 'rx-packet':
+                    result = calc_latency(j['object'])
+
+                    value = result['object']['latency-rt-app']
+                    timestamp = result['object']['tx-user-timestamp']
+                    stream_id = result['object']['stream-id']
+                    update_histogram(stream_id, timestamp, value,
+                            hist_rt_latency['object'])
+
+                    value = result['object']['latency-scheduled-times']
+                    timestamp = result['object']['tx-user-timestamp']
+                    stream_id = result['object']['stream-id']
+                    update_histogram(stream_id, timestamp, value,
+                            hist_scheduled_times['object'])
+
+                    if args.count != 0:
+                        count += 1
+                        if count == args.count:
+                            dump_json_str(hist_rt_latency)
+                            dump_json_str(hist_scheduled_times)
+                            count = 0
+                            hist_rt_latency= copy.deepcopy(
+                                    histogram_rt_latency_empty)
+                            hist_scheduled_times = copy.deepcopy(
+                                    histogram_scheduled_times_empty)
+
+                sys.stdout.flush()
+
+            except ValueError as e:
+                print(e, file=sys.stderr)
+                pass
+    except KeyboardInterrupt as e:
+        pass
+
+    dump_json_str(hist_rt_latency)
+    dump_json_str(hist_scheduled_times)
+
+if __name__ == '__main__':
+    main()

@@ -34,9 +34,9 @@
 
 struct ether_testpacket {
 	struct ether_header hdr;
-	struct timespec ts_t0;        /* timestamp of interval start */
-	struct timespec ts_tx_target; /* timestamp of wished target time */
-	struct timespec ts_tx;        /* timestamp before sending */
+	struct timespec ts_interval_start;  /* timestamp of interval start */
+	struct timespec ts_tx_target;       /* timestamp of wished target time */
+	struct timespec ts_tx;              /* timestamp before sending */
 	guint32 seq;
 	guint32 interval_usec;
 	guint32 offset_usec;

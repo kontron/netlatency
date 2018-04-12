@@ -258,8 +258,6 @@ static void *timer_thread(void *params)
     tp->stream_id = o_stream_id;
 
     while (!do_shutdown) {
-
-
         /* if interval is 0 send as fast as possible */
         if (o_interval_ms != 0) {
             wait_for_next_timeslice(&interval, o_interval_offset_usec,
@@ -313,8 +311,8 @@ int main(int argc, char **argv)
     }
 
     if (o_packet_size == -1) {
-        o_packet_size = 64;
-    } else if (o_packet_size < 64) {
+        o_packet_size = sizeof(struct ether_testpacket);
+    } else if (o_packet_size < (gint)sizeof(struct ether_testpacket)) {
         printf("not supported packet size\n");
         return -1;
     }

@@ -110,24 +110,33 @@ def main(args=None):
     args = parser.parse_args(args)
 
     j = None
+    a = None
+    b = None
+    c = None
     try:
         for line in args.infile:
             try:
                 j = json.loads(line)
+                if j['type'] == 'histogram-rt-latency':
+                    b = j['object']
+                if j['type'] == 'histogram-scheduled-times':
+                    a = j['object']
             except ValueError:
                 pass
     except KeyboardInterrupt:
         for line in args.infile:
             try:
                 j = json.loads(line)
+                if j['type'] == 'histogram-rt-latency':
+                    b = j['object']
+                if j['type'] == 'histogram-scheduled-times':
+                    a = j['object']
             except ValueError:
                 pass
 
-    if j:
-        if j['type'] == 'histogram':
-            data  = j['object']
-            plot(data, data, data)
-            plot_output(args.outfile)
+
+    plot(a, b, b)
+    plot_output(args.outfile)
 
 
 if __name__ == '__main__':

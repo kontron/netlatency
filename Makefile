@@ -85,7 +85,7 @@ INSTALL_TARGETS += install-scripts
 rx_SOURCES := rx.c domain_socket.c timer.c
 rx_OBJECTS := $(addprefix $(o),$(rx_SOURCES:.c=.o))
 
-HELPER_SCRIPTS := latency histogen reportgen
+HELPER_SCRIPTS := latency histogen reportgen netlatency-calc
 
 $(o)%.o: %.c
 	$(call compile_tgt,netlatency)
@@ -121,6 +121,7 @@ install-scripts: $(HELPER_SCRIPTS)
 	$(INSTALL) -m 0755 latency $(DESTDIR)$(BINDIR)/
 	$(INSTALL) -m 0755 histogen $(DESTDIR)$(BINDIR)/
 	$(INSTALL) -m 0755 reportgen $(DESTDIR)$(BINDIR)/
+	$(INSTALL) -m 0755 netlatency-calc $(DESTDIR)$(BINDIR)/
 
 
 .PHONY: $(CLEAN_TARGETS) clean

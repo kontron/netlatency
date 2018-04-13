@@ -25,3 +25,4 @@ A network latency measurement toolset.
 /usr/bin/latency
 /usr/bin/reportgen
 /usr/bin/histogen
+/usr/bin/netlatency-calc

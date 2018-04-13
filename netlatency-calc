@@ -33,24 +33,7 @@ import json
 import numpy
 import sys
 
-
-def update_histogram(stream_id, timestamp, latency_usec, histogram):
-    histogram['count'] += 1
-    histogram['stream-id'] = stream_id
-
-    if latency_usec > histogram['max'] or histogram['max'] == 0:
-        histogram['max'] = latency_usec
-    if latency_usec < histogram['min'] or histogram['min'] == 0:
-        histogram['min'] = latency_usec
-
-    if latency_usec < 0:
-        histogram['time_error'] += 1
-    if latency_usec < len(histogram['histogram']):
-        histogram['histogram'][latency_usec] += 1
-    else:
-        histogram['outliers'] += 1
-
-
+def update_histogram_timestamp(timestamp, histogram):
     tx_timestamp = numpy.datetime64(timestamp)
 
     if not histogram['start-timestamp']:
@@ -62,6 +45,55 @@ def update_histogram(stream_id, timestamp, latency_usec, histogram):
     if numpy.datetime64(timestamp) > \
             numpy.datetime64(histogram['end-timestamp']):
         histogram['end-timestamp'] = timestamp
+
+def update_histogram_general(value, histogram):
+    histogram['count'] += 1
+    if value > histogram['max'] or histogram['max'] == 0:
+        histogram['max'] = value
+    if value < histogram['min'] or histogram['min'] == 0:
+        histogram['min'] = value
+
+def update_histogram_modulo(timestamp, value, histogram):
+
+    update_histogram_general(value, histogram)
+
+    if value < 0:
+        histogram['time_error'] += 1
+    elif value > len(histogram['histogram']):
+        histogram['outliers'] += 1
+    else:
+        value  = value % 1000
+        histogram['histogram'][value] += 1
+
+    update_histogram_timestamp(timestamp, histogram)
+
+def update_histogram(timestamp, value, histogram):
+
+    update_histogram_general(value, histogram)
+
+    if value < 0:
+        histogram['time_error'] += 1
+    elif value < len(histogram['histogram']):
+        try:
+            histogram['histogram'][value] += 1
+        except IndexError as e:
+            print ((e, value))
+    else:
+        histogram['outliers'] += 1
+
+    update_histogram_timestamp(timestamp, histogram)
+
+def update_histogram_jitter(timestamp, value, offset, histogram):
+
+    update_histogram_general(value, histogram)
+
+    value += offset
+    if value < 0 or value > len(histogram['histogram']):
+        histogram['outliers'] += 1
+    else:
+        histogram['histogram'][value] += 1
+
+    update_histogram_timestamp(timestamp, histogram)
 
 
 def calc_latency(pkt):
@@ -86,12 +118,43 @@ def calc_latency(pkt):
     result['type'] = 'latency-calc'
     result['object'] = {
         'latency-rt-app': int(diff_rt_app)/1000 % pkt['interval-usec'],
-        'latency-scheduled-times': int(diff_interval_start_hw_rx)/1000 % pkt['interval-usec'],
+        #'latency-scheduled-times': int(diff_interval_start_hw_rx)/1000 % pkt['interval-usec'],
+        'latency-scheduled-times': int(diff_interval_start_hw_rx)/1000,
         'sequence-number': pkt['sequence-number'],
         'tx-user-timestamp': pkt['tx-user-timestamp'],
         'stream-id': pkt['stream-id'],
     }
     return result
+
+
+mean_latency = 0
+count_pkt = 0
+jitter_min = 0
+jitter_max = 0
+
+def calc_jitter(pkt):
+    global mean_latency
+    global count_pkt
+    global jitter_min
+    global jitter_max
+
+    result = {}
+    interval_start = numpy.datetime64(pkt['interval-start-timestamp'])
+    rx_hw = numpy.datetime64(pkt['rx-hw-timestamp'])
+
+    diff_interval_start_hw_rx = rx_hw - interval_start
+
+    val = int(diff_interval_start_hw_rx) % (pkt['interval-usec'] * 1000)
+    mean_latency = (count_pkt * mean_latency + val) / (count_pkt + 1)
+    count_pkt += 1
+    #print(mean_latency)
+
+    jitter = mean_latency - val
+    if jitter_min > jitter:
+        jitter_min = jitter
+    if jitter_max < jitter:
+        jitter_max = jitter
+    return jitter
 
 
 def dump_json_str(val):
@@ -118,7 +181,7 @@ def main(args=None):
             'max': 0,
             'outliers': 0,
             'time_error': 0,
-            'histogram': [0] * 100,
+            'histogram': [0] * 50,
             'start-timestamp': None,
             'end-timestamp': None,
         }
@@ -139,8 +202,25 @@ def main(args=None):
         }
     }
 
+    histogram_jitter_empty= {
+        'type': 'histogram-jitter',
+        'object': {
+            'stream-id': 0,
+            'count': 0,
+            'min': 0,
+            'max': 0,
+            'outliers': 0,
+            'time_error': 0,
+            'offset': 1500,
+            'histogram': [0] * 3000,
+            'start-timestamp': None,
+            'end-timestamp': None,
+        }
+    }
+
     hist_rt_latency = copy.deepcopy(histogram_rt_latency_empty)
     hist_scheduled_times = copy.deepcopy(histogram_scheduled_times_empty)
+    hist_jitter = copy.deepcopy(histogram_jitter_empty)
 
     count = 0
     try:
@@ -152,29 +232,35 @@ def main(args=None):
                     print(line, file=sys.stdout)
                 elif j['type'] == 'rx-packet':
                     result = calc_latency(j['object'])
+                    #dump_json_str(result)
+
+                    timestamp = result['object']['tx-user-timestamp']
 
                     value = result['object']['latency-rt-app']
-                    timestamp = result['object']['tx-user-timestamp']
-                    stream_id = result['object']['stream-id']
-                    update_histogram(stream_id, timestamp, value,
+                    update_histogram(timestamp, value,
                             hist_rt_latency['object'])
 
                     value = result['object']['latency-scheduled-times']
-                    timestamp = result['object']['tx-user-timestamp']
-                    stream_id = result['object']['stream-id']
-                    update_histogram(stream_id, timestamp, value,
+                    update_histogram_modulo(timestamp, value,
                             hist_scheduled_times['object'])
+
+                    jitter = calc_jitter(j['object'])
+                    update_histogram_jitter(timestamp, jitter, hist_jitter['object']['offset'],
+                            hist_jitter['object'])
 
                     if args.count != 0:
                         count += 1
                         if count == args.count:
                             dump_json_str(hist_rt_latency)
                             dump_json_str(hist_scheduled_times)
+                            dump_json_str(hist_jitter)
                             count = 0
                             hist_rt_latency= copy.deepcopy(
                                     histogram_rt_latency_empty)
                             hist_scheduled_times = copy.deepcopy(
                                     histogram_scheduled_times_empty)
+                            hist_jitter = copy.deepcopy(
+                                    histogram_jitter_empty)
 
                 sys.stdout.flush()
 
@@ -186,6 +272,8 @@ def main(args=None):
 
     dump_json_str(hist_rt_latency)
     dump_json_str(hist_scheduled_times)
+    dump_json_str(hist_jitter)
+
 
 if __name__ == '__main__':
     main()

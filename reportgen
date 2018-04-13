@@ -43,17 +43,21 @@ import matplotlib.pyplot as plt
 
 
 def add_subplot_data(plt, data):
+    offset = 0
     max_val = data['max']
     min_val = data['min']
-    counts = data['count']
     outliers = data['outliers']
     y = data['histogram']
-    x = range(0, len(data['histogram']))
+    if 'offset' in data:
+        offset = data['offset']
+        x = range(-offset, len(data['histogram']) - offset)
+    else:
+        x = range(0, len(data['histogram']))
 
     plt.bar(x, y)
-    plt.yscale('log')
-    t = 'counts: %s, min: %s $\mu$s, max: %s $\mu$s outliers: %s' % (
-            counts, min_val, max_val, outliers)
+    plt.yscale('symlog')
+    t = 'min: %s $\mu$s\nmax: %s $\mu$s\noutliers: %s' % (
+            min_val, max_val, outliers)
     ax = plt.gca()
     plt.text(1, 1, t, transform=ax.transAxes, verticalalignment='top',
             horizontalalignment='right')
@@ -86,8 +90,10 @@ def plot(rxtimestamps, txtimestamps, jitter):
     add_subplot_data(plt, jitter)
 
     plt.subplots_adjust(top=0.90, hspace=0.4, bottom=0.15)
-    plt.gcf().text(0.01, 0.01, 'start: %s\nend: %s' % (rxtimestamps['start-timestamp'],
-        rxtimestamps['end-timestamp']))
+    counts = rxtimestamps['count']
+    start = rxtimestamps['start-timestamp']
+    end = rxtimestamps['end-timestamp']
+    plt.gcf().text(0.01, 0.01, 'counts: %s\nstart: %s\nend: %s' % (counts, start, end))
 
 def plot_output(outfile=None):
     if outfile:
@@ -121,21 +127,25 @@ def main(args=None):
                     b = j['object']
                 if j['type'] == 'histogram-scheduled-times':
                     a = j['object']
+                if j['type'] == 'histogram-jitter':
+                    c = j['object']
             except ValueError:
                 pass
     except KeyboardInterrupt:
         for line in args.infile:
+            print (line)
             try:
                 j = json.loads(line)
                 if j['type'] == 'histogram-rt-latency':
                     b = j['object']
                 if j['type'] == 'histogram-scheduled-times':
                     a = j['object']
+                if j['type'] == 'histogram-jitter':
+                    c = j['object']
             except ValueError:
                 pass
 
-
-    plot(a, b, b)
+    plot(a, b, c)
     plot_output(args.outfile)
 
 

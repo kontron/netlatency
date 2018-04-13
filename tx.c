@@ -25,6 +25,7 @@
  */
 
 #define GNU_SOURCE
+#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -242,6 +243,8 @@ static void *timer_thread(void *params)
     struct timespec interval_start;
     struct timespec interval;
     gint64 count = 0;
+
+    pthread_setname_np(pthread_self(), "TX RT timer");
 
     memset(&schedp, 0, sizeof(schedp));
     schedp.sched_priority = o_sched_prio;

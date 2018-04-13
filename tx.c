@@ -62,6 +62,7 @@
 static gchar *help_description = NULL;
 static gchar *o_destination_mac = "FF:FF:FF:FF:FF:FF";
 static gint o_count = 0;
+static gint o_cpu_number = -1;
 static gint o_interval_ms = 1000;
 static gint o_interval_offset_usec = 0;
 static gint o_packet_size = -1;
@@ -123,6 +124,9 @@ static GOptionEntry entries[] = {
     { "count",       'c', 0, G_OPTION_ARG_INT,
             &o_count,
             "Transmit packet count", "COUNT" },
+    { "cpu",         'C', 0, G_OPTION_ARG_INT,
+            &o_cpu_number,
+            "Run timer thread on specified CPU(s) (default is all)", "CPU" },
     { "padding",     'P', 0, G_OPTION_ARG_INT,
             &o_packet_size,
             "Set the packet size", "SIZE" },
@@ -245,6 +249,29 @@ static void *timer_thread(void *params)
     gint64 count = 0;
 
     pthread_setname_np(pthread_self(), "TX RT timer");
+
+    if (o_cpu_number != -1) {
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(o_cpu_number, &cpuset);
+        if (pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset)) {
+            perror("error setting cpu affinity");
+        }
+
+    }
+
+#if 0
+    {
+        cpu_set_t cpuset;
+        pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+        int i;
+        for (i=0; i < CPU_SETSIZE; i++) {
+            if (CPU_ISSET(i, &cpuset)) {
+                printf("cpu mask: %x\n", i);
+            }
+        }
+    }
+#endif
 
     memset(&schedp, 0, sizeof(schedp));
     schedp.sched_priority = o_sched_prio;

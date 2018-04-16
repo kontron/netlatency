@@ -88,10 +88,13 @@ def update_histogram_jitter(timestamp, value, offset, histogram):
     update_histogram_general(value, histogram)
 
     value += offset
-    if value < 0 or value > len(histogram['histogram']):
+    if value < 0 or value >= len(histogram['histogram']):
         histogram['outliers'] += 1
     else:
-        histogram['histogram'][value] += 1
+        try:
+            histogram['histogram'][value] += 1
+        except IndexError as e:
+            print ((e, value))
 
     update_histogram_timestamp(timestamp, histogram)
 
@@ -211,8 +214,8 @@ def main(args=None):
             'max': 0,
             'outliers': 0,
             'time_error': 0,
-            'offset': 1500,
-            'histogram': [0] * 3000,
+            'offset': 1000,
+            'histogram': [0] * 2000,
             'start-timestamp': None,
             'end-timestamp': None,
         }

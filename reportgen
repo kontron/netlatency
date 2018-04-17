@@ -48,32 +48,36 @@ def chunks(d, n):
 def reduce_sum_array(a, n):
     return [sum(l) for l in chunks(a, n)]
 
-def add_subplot_data(plt, data, unit, reduce=1):
+def add_subplot_data(plt, data, unit, width, reduce=1):
     offset = 0
     max_val = data['max']
     min_val = data['min']
     outliers = data['outliers']
 
-    d = data['histogram']
-    if reduce != 1:
-        d = reduce_sum_array(d, reduce)
+    y = data['histogram']
 
-    y = d
+    # reduce data to show in plot
+    if reduce != 1:
+        y = reduce_sum_array(y, reduce)
+
     if 'offset' in data:
         offset = data['offset']
-        x = range(-offset, len(d) - offset)
+        x = range(-offset/reduce, len(y) - offset/reduce)
     else:
-        x = range(0, len(d))
+        x = range(0, len(y))
 
-    plt.bar(x, y, edgecolor="none")
+    if reduce != 1:
+        x = [e * reduce for e in x]
+
+    plt.bar(x, y, width, edgecolor="none")
     plt.yscale('symlog')
+    ax = plt.gca()
+    #ax.set_xticks([0,100,200,300,400,500,600,700,800,900,1000])
+    #ax.set_xticklabels(range(0, len(x) * reduce))
     t = 'min: %s $\mu$s\nmax: %s $\mu$s\noutliers: %s' % (
             min_val, max_val, outliers)
     text = 'min: %s %s\nmax: %s %s\noutliers: %s' % (
             min_val, unit,  max_val, unit, outliers)
-    ax = plt.gca()
-    #ax.set_xticks(range(0, len(x), 5))
-    #ax.set_xticklabels(range(0, len(x) * reduce))
     plt.text(1, 1, text, transform=ax.transAxes, verticalalignment='top',
             horizontalalignment='right')
 
@@ -88,21 +92,21 @@ def plot(rxtimestamps, txtimestamps, jitter):
     plt.grid(True)
     plt.xlabel('Latency ($\mu$s)')
     plt.ylabel('Packets')
-    add_subplot_data(plt, rxtimestamps, '$\mu$s', reduce=10)
+    add_subplot_data(plt, rxtimestamps, '$\mu$s', width=2, reduce=2)
 
     plt.subplot(2, 2, 3)
     plt.title('RT Application latency')
     plt.grid(True)
     plt.xlabel('Latency ($\mu$s)')
     plt.ylabel('Packets')
-    add_subplot_data(plt, txtimestamps, '$\mu$s')
+    add_subplot_data(plt, txtimestamps, '$\mu$s', width=0.8)
 
     plt.subplot(2, 2, 4)
     plt.title('TSN Network Jitter')
     plt.grid(True)
     plt.xlabel('Jitter (ns)')
     plt.ylabel('Packets')
-    add_subplot_data(plt, jitter, 'ns', reduce=10)
+    add_subplot_data(plt, jitter, 'ns', width=10, reduce=10)
 
     plt.subplots_adjust(top=0.90, hspace=0.4, bottom=0.15)
     counts = rxtimestamps['count']
@@ -112,7 +116,7 @@ def plot(rxtimestamps, txtimestamps, jitter):
 
 def plot_output(outfile=None):
     if outfile:
-        plt.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=300)
     else:
         try:
             plt.show()

@@ -187,6 +187,7 @@ struct test_packet_result {
     struct timespec ts_interval_start;
     struct timespec tx_user_target_ts;
     struct timespec tx_user_ts;
+    struct timespec tx_kernel_ts_last;
     struct timespec rx_hw_ts;
     struct timespec rx_user_ts;
     struct timespec latency_ts;
@@ -213,6 +214,7 @@ static int handle_test_packet(struct msghdr *msg,
 
     memcpy(&result->ts_interval_start, &tp->ts_interval_start, sizeof(struct timespec));
     memcpy(&result->tx_user_ts, &tp->ts_tx, sizeof(struct timespec));
+    memcpy(&result->tx_kernel_ts_last, &tp->ts_tx_kernel, sizeof(struct timespec));
     memcpy(&result->tx_user_target_ts, &tp->ts_tx_target, sizeof(struct timespec));
 
     /* calc diff between timestamp in testpacket hardware timestamp */
@@ -232,16 +234,18 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     char *s_interval_start;
     char *s_tx_user;
     char *s_tx_user_target;
+    char *s_tx_kernel_last;
     char *s_rx_hw;
     char *s_rx_user;
 
     s_interval_start = timespec_to_iso_string(&result->ts_interval_start);
     s_tx_user = timespec_to_iso_string(&result->tx_user_ts);
     s_tx_user_target = timespec_to_iso_string(&result->tx_user_target_ts);
+    s_tx_kernel_last = timespec_to_iso_string(&result->tx_kernel_ts_last);
     s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
     s_rx_user = timespec_to_iso_string(&result->rx_user_ts);
 
-    j = json_pack("{sss{sisisisisissssssssss}}",
+    j = json_pack("{sss{sisisisisissssssssssss}}",
                   "type", "rx-packet",
                   "object",
                   "stream-id", result->stream_id,
@@ -252,6 +256,7 @@ static char *dump_json_test_packet(struct test_packet_result *result)
                   "interval-start-timestamp", s_interval_start,
                   "tx-user-timestamp", s_tx_user,
                   "tx-user-target-timestamp", s_tx_user_target,
+                  "tx-kernel-last-timestamp", s_tx_kernel_last,
                   "rx-hw-timestamp", s_rx_hw,
                   "rx-user-timestamp", s_rx_user
     );

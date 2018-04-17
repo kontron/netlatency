@@ -34,6 +34,7 @@
 #include <netinet/ether.h>
 #include <netinet/in.h>
 #include <netpacket/packet.h>
+#include <linux/net_tstamp.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -246,7 +247,13 @@ static void *timer_thread(void *params)
     struct timespec next;
     struct timespec interval_start;
     struct timespec interval;
+    struct timespec _last_tx_ts = { 0 }, *last_tx_ts = &_last_tx_ts;
     gint64 count = 0;
+    struct msghdr msg;
+    char control[256];
+    char buf[512];
+    struct iovec iov = { buf, sizeof(buf) };
+    struct cmsghdr *cm;
 
     pthread_setname_np(pthread_self(), "TX RT timer");
 
@@ -286,19 +293,41 @@ static void *timer_thread(void *params)
     tp->offset_usec = o_interval_offset_usec;
     tp->packet_size = o_packet_size;
     tp->stream_id = o_stream_id;
+    tp->version = 1;
 
     while (!do_shutdown) {
+        /* get timestamp of last transmitted packet */
+        memset(control, 0, sizeof(control));
+        memset(&msg, 0, sizeof(msg));
+
+        msg.msg_iov = &iov;
+        msg.msg_iovlen = 1;
+        msg.msg_control = control;
+        msg.msg_controllen = sizeof(control);
+
+        while (recvmsg(parm->fd, &msg, MSG_DONTWAIT | MSG_ERRQUEUE) > 0) {
+            for (cm = CMSG_FIRSTHDR(&msg); cm != NULL; cm = CMSG_NXTHDR(&msg, cm)) {
+                if (cm->cmsg_level == SOL_SOCKET
+                        && cm->cmsg_type == SO_TIMESTAMPING
+                        &&  cm->cmsg_len >= sizeof(struct timespec) * 3) {
+                    last_tx_ts = (struct timespec *)CMSG_DATA(cm);
+                }
+            }
+        }
+
         /* if interval is 0 send as fast as possible */
         if (o_interval_ms != 0) {
             wait_for_next_timeslice(&interval, o_interval_offset_usec,
                     &next, &interval_start);
         }
 
+
         /* update new timestamp in packet */
         memcpy(&tp->ts_interval_start, &interval_start, sizeof(struct timespec));
         memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
         clock_gettime(CLOCK_REALTIME, &now);
         memcpy(&tp->ts_tx, &now, sizeof(struct timespec));
+        memcpy(&tp->ts_tx_kernel, last_tx_ts, sizeof(struct timespec));
 
         write(parm->fd, buf, o_packet_size);
 
@@ -327,6 +356,8 @@ int main(int argc, char **argv)
     sigset_t sigset;
     pthread_t thread;
     pthread_attr_t attr;
+    int opt;
+    int rc;
 
     parse_command_line_options(&argc, argv);
 
@@ -357,6 +388,16 @@ int main(int argc, char **argv)
     if (o_queue_prio > 0) {
         setsockopt(fd, SOL_SOCKET, SO_PRIORITY, &o_queue_prio,
                    sizeof(o_queue_prio));
+    }
+
+    /* enable transmit timestamping */
+    opt = 0;
+    opt = SOF_TIMESTAMPING_TX_SOFTWARE
+          | SOF_TIMESTAMPING_SOFTWARE;
+    rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
+    if (rc == -1) {
+        perror("setsockopt() ... enable timestamp");
+        return -1;
     }
 
     /* use the /dev/cpu_dma_latency trick if it's there */

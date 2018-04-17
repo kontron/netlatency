@@ -34,10 +34,12 @@
 
 struct ether_testpacket {
 	struct ether_header hdr;
+	guint8 version;
+	guint32 seq;
 	struct timespec ts_interval_start;  /* timestamp of interval start */
 	struct timespec ts_tx_target;       /* timestamp of wished target time */
 	struct timespec ts_tx;              /* timestamp before sending */
-	guint32 seq;
+	struct timespec ts_tx_kernel;       /* timestamp of last packet before sending from kernel */
 	guint32 interval_usec;
 	guint32 offset_usec;
 	guint32 packet_size;

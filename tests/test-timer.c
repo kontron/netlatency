@@ -180,6 +180,17 @@ static void test_timespec_to_iso_string(void)
     struct timespec t;
     char *s;
 
+    s = timespec_to_iso_string(NULL);
+    g_assert(s != NULL);
+    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.000000000Z");
+    g_free(s);
+
+    memset(&t, 0, sizeof(struct timespec));
+    s = timespec_to_iso_string(&t);
+    g_assert(s != NULL);
+    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.000000000Z");
+    g_free(s);
+
     t.tv_sec = 0;
     t.tv_nsec = 0;
     s = timespec_to_iso_string(&t);

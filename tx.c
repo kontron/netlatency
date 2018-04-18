@@ -75,8 +75,7 @@ static int o_queue_prio = -1;
 
 static gint do_shutdown = 0;
 
-static uint8_t buf[2048];
-struct ether_testpacket *tp = (struct ether_testpacket*)buf;
+struct ether_testpacket _tp, *tp = &_tp;
 
 int eth_open(const char *device)
 {

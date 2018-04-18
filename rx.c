@@ -68,7 +68,7 @@ static gint o_version = 0;
 
 static gint do_shutdown = 0;
 
-static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
+static void get_hw_timestamps(struct msghdr *msg, struct timespec *ts1, struct timespec *ts2)
 {
     struct cmsghdr *cmsg;
 
@@ -76,7 +76,8 @@ static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
         struct timespec ts[3];
     };
 
-    memset(ts, 0, sizeof(struct timespec));
+    memset(ts1, 0, sizeof(struct timespec));
+    memset(ts2, 0, sizeof(struct timespec));
 
     for (cmsg = CMSG_FIRSTHDR(msg); cmsg; cmsg = CMSG_NXTHDR(msg, cmsg)) {
         struct scm_timestamping* scm_ts = NULL;
@@ -92,7 +93,8 @@ static void get_hw_timestamp(struct msghdr *msg, struct timespec *ts)
             break;
         case SO_TIMESTAMPING:
             scm_ts = (struct scm_timestamping*) CMSG_DATA(cmsg);
-            memcpy(ts, &scm_ts->ts[2], sizeof(struct timespec));
+            memcpy(ts1, &scm_ts->ts[0], sizeof(struct timespec));
+            memcpy(ts2, &scm_ts->ts[2], sizeof(struct timespec));
             break;
         default:
             printf("cmsg_type=%d", cmsg->cmsg_type);
@@ -188,6 +190,7 @@ struct test_packet_result {
     struct ether_testpacket *tp;
 
     struct timespec rx_hw_ts;
+    struct timespec rx_sw_ts;
     struct timespec rx_user_ts;
 
     gint dropped;
@@ -199,7 +202,7 @@ static int handle_test_packet(struct msghdr *msg,
 {
     struct ether_testpacket *tp;
 
-    get_hw_timestamp(msg, &result->rx_hw_ts);
+    get_hw_timestamps(msg, &result->rx_sw_ts, &result->rx_hw_ts);
 
     tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
@@ -263,12 +266,12 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     json_object_set_new(timestamps, "values", json_array());
 
     add_json_timestamp(timestamps, "interval-start", &result->tp->timestamps[TS_T0]);
-    add_json_timestamp(timestamps, "tx-wakeup", NULL);
+    add_json_timestamp(timestamps, "tx-wakeup", &result->tp->timestamps[TS_WAKEUP]);
     add_json_timestamp(timestamps, "tx-program", &result->tp->timestamps[TS_PROG_SEND]);
     add_json_timestamp(timestamps, "tx-kernel-netsched", &result->tp->timestamps[TS_LAST_KERNEL_SCHED]);
     add_json_timestamp(timestamps, "tx-kernel-driver", &result->tp->timestamps[TS_LAST_KERNEL_SW_TX]);
     add_json_timestamp(timestamps, "rx-hardware", &result->rx_hw_ts);
-    add_json_timestamp(timestamps, "rx-kernerl-driver", NULL);
+    add_json_timestamp(timestamps, "rx-kernerl-driver", &result->rx_sw_ts);
     add_json_timestamp(timestamps, "rx-program", &result->rx_user_ts);
 
     s = json_dumps(root, JSON_COMPACT);

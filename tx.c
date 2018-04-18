@@ -357,12 +357,14 @@ static void *timer_thread(void *params)
         }
 
         /* update timestamps in packet */
+        tp_set_timestamp(tp, TS_WAKEUP, NULL);
+
         tp_set_timestamp(tp, TS_T0, &interval_start);
         if (!o_small_pkt_mode) {
             tp_set_timestamp(tp, TS_LAST_KERNEL_SCHED, &last_sched_tx_ts);
             tp_set_timestamp(tp, TS_LAST_KERNEL_SW_TX, &last_sw_tx_ts);
             tp_set_timestamp(tp, TS_PROG_SEND, NULL);
-            size += sizeof(struct timespec) * 3;
+            size += sizeof(struct timespec) * 5;
         } else {
             size += sizeof(struct timespec);
         }

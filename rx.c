@@ -110,33 +110,43 @@ static gboolean is_broadcast_addr(guint8 *addr)
     return !memcmp(addr, "\xff\xff\xff\xff\xff\xff", ETH_ALEN);
 }
 
-#define BUF_SIZE 10*1024
-#define BUF_CONTROL_SIZE 1024
-static int receive_msg(int fd, struct ether_addr *myaddr, struct msghdr *msg)
+static struct msghdr *receive_msg(int fd, struct ether_addr *myaddr)
 {
+    static struct msghdr msg;
+    static struct iovec iov;
+    static unsigned char buf[2048];
+    static char cbuf[1024];
+    struct sockaddr_in host_address;
+    struct ether_testpacket *tp = (void*)buf;
     int n;
 
+    /* recvmsg header structure */
+    iov.iov_base = buf;
+    iov.iov_len = sizeof(buf);
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_name = &host_address;
+    msg.msg_namelen = sizeof(struct sockaddr_in);
+    msg.msg_control = cbuf;
+    msg.msg_controllen = sizeof(cbuf);
+
     /* block for message */
-    n = recvmsg(fd, msg, 0);
+    n = recvmsg(fd, &msg, 0);
     if ( n == 0 && errno == EAGAIN ) {
         return 0;
     }
 
-    struct ether_testpacket *tp;
-    tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
-
-
     if (myaddr != NULL) {
         /* filter for own ether packets */
         if (is_broadcast_addr(tp->hdr.ether_dhost)) {
-            return n;
+            return &msg;
         }
         if (memcmp(myaddr->ether_addr_octet, tp->hdr.ether_dhost, ETH_ALEN)) {
-            return -1;
+            return NULL;
         }
     }
 
-    return n;
+    return &msg;
 }
 
 #define MAX_STREAM_ID 32
@@ -613,6 +623,7 @@ int real_main(int argc, char **argv)
     struct ether_addr *src_eth_addr = NULL;
     char *ifname = NULL;
     sigset_t sigset;
+    struct msghdr *msg;
 
     parse_command_line_options(&argc, argv);
 
@@ -663,25 +674,9 @@ int real_main(int argc, char **argv)
 
     gint64 count = 0;
     while (!do_shutdown) {
-        struct msghdr msg;
-        struct iovec iov;
-        struct sockaddr_in host_address;
-        unsigned char buffer[BUF_SIZE];
-        char control[BUF_CONTROL_SIZE];
-
-        /* recvmsg header structure */
-        iov.iov_base = buffer;
-        iov.iov_len = BUF_SIZE;
-        msg.msg_iov = &iov;
-        msg.msg_iovlen = 1;
-        msg.msg_name = &host_address;
-        msg.msg_namelen = sizeof(struct sockaddr_in);
-        msg.msg_control = control;
-        msg.msg_controllen = BUF_CONTROL_SIZE;
-
-        rc = receive_msg(fd, src_eth_addr, &msg);
-        if (rc > 0) {
-            handle_msg(&msg, fd_socket);
+        msg = receive_msg(fd, src_eth_addr);
+        if (msg) {
+            handle_msg(msg, fd_socket);
         }
 
         count++;

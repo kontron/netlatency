@@ -51,7 +51,6 @@
 #include <jansson.h>
 
 #include "data.h"
-#include "domain_socket.h"
 #include "timer.h"
 
 #ifndef VERSION
@@ -62,12 +61,9 @@ static gchar *help_description = NULL;
 static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
 static gint o_count = 0;
 static gint o_ptp_mode = FALSE;
-static gint o_quiet = 0;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
-static gint o_socket = 0;
 static gint o_verbose = 0;
 static gint o_version = 0;
-
 
 static gint do_shutdown = 0;
 
@@ -279,93 +275,7 @@ static char *dump_json_error(struct test_packet_result *result)
     return s;
 }
 
-#define MAX_CLIENTS 2
-static int client_socket[MAX_CLIENTS];
-static int max_fd;
-
-static int handle_status_socket(int fd_socket, char *result_str)
-{
-    int rc = 0;
-
-    int i;
-    int sd;
-    int activity;
-    int new_socket;
-    fd_set readfds;
-    struct timeval timeout;
-
-    /* Initialize the file descriptor set. */
-    FD_ZERO(&readfds);
-    FD_SET(fd_socket, &readfds);
-    max_fd = fd_socket;
-
-    /* Initialize the timeout data structure. */
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-
-    /* add child sockets to set */
-    for (i = 0 ; i < MAX_CLIENTS; i++) {
-        sd = client_socket[i];
-        if (sd > 0) {
-            FD_SET(sd, &readfds);
-        }
-
-        if (sd > max_fd) {
-            max_fd = sd;
-        }
-    }
-
-    activity = select(max_fd + 1, &readfds, NULL, NULL, &timeout);
-    if ((activity < 0) && (errno != EINTR)) {
-        perror("select error");
-    }
-
-    /* check for new incoming connection */
-    if (FD_ISSET(fd_socket, &readfds)) {
-        if ((new_socket = accept(fd_socket, NULL, NULL)) < 0) {
-            perror("accept");
-            return 0;
-        }
-
-
-        /* todo check for max reached ... */
-        for (i = 0 ; i < MAX_CLIENTS; i++) {
-            if (client_socket[i] == 0) {
-                client_socket[i] = new_socket;
-                break;
-            }
-        }
-    }
-
-    if (result_str == NULL) {
-        return -1;
-    }
-
-    /* handle all active connecitons */
-    for (i = 0; i < MAX_CLIENTS; i++) {
-        sd = client_socket[i];
-
-        if (sd == 0) {
-            continue;
-        }
-
-        if (FD_ISSET(sd, &readfds)) {
-            char t[32];
-            if (read(sd, t, 32) == 0) {
-                close(sd);
-                client_socket[i] = 0;
-            }
-        }
-
-        if (write(sd, result_str, strlen(result_str) + 1) <= 0) {
-            client_socket[i] = 0;
-        }
-    }
-
-    return rc;
-}
-
-static int handle_msg(struct msghdr *msg, int fd_socket)
+static int handle_msg(struct msghdr *msg)
 {
     int rc = 0;
     struct test_packet_result result;
@@ -385,23 +295,15 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
             json_rx_error_str = dump_json_error(&result);
         }
         if (json_rx_error_str) {
-            if (!o_quiet) {
-                printf("%s\n", json_rx_error_str);
-                fflush(stdout);
-            }
+			printf("%s\n", json_rx_error_str);
+			fflush(stdout);
             free(json_rx_error_str);
         }
 
         json_rx_packet_str = dump_json_test_packet(&result);
         if (json_rx_packet_str) {
-            if (!o_quiet) {
-                printf("%s\n", json_rx_packet_str);
-                fflush(stdout);
-            }
-
-            if (fd_socket != -1) {
-                rc = handle_status_socket(fd_socket, json_rx_packet_str);
-            }
+			printf("%s\n", json_rx_packet_str);
+			fflush(stdout);
             free(json_rx_packet_str);
         }
 
@@ -554,13 +456,9 @@ static gboolean parse_rx_filter_cb(const gchar *key, const gchar *value,
 static GOptionEntry entries[] = {
     { "verbose",   'v', 0, G_OPTION_ARG_NONE,
             &o_verbose, "Be verbose", NULL },
-    { "quiet",     'q', 0, G_OPTION_ARG_NONE,
-            &o_quiet, "Suppress error messages", NULL },
     { "count",    'c', 0, G_OPTION_ARG_INT,
             &o_count,
             "Receive packet count", "COUNT" },
-    { "socket",    's', 0, G_OPTION_ARG_NONE,
-            &o_socket, "Write packet results to socket", NULL },
     { "ethertype", 'e', 0, G_OPTION_ARG_INT,
             &o_capture_ethertype, "Set ethertype to filter"
             " (Default is 0x0808, ETH_P_ALL is 0x3)", "TYPE" },
@@ -619,7 +517,6 @@ int real_main(int argc, char **argv)
 {
     int rc;
     int fd;
-    int fd_socket = -1;
     struct ether_addr *src_eth_addr = NULL;
     char *ifname = NULL;
     sigset_t sigset;
@@ -660,10 +557,6 @@ int real_main(int argc, char **argv)
         }
     }
 
-    if (o_socket) {
-        fd_socket = open_server_socket(socket_path);
-    }
-
     sigemptyset(&sigset);
 //  sigaddset(&sigset, SIGALARM);
 
@@ -676,7 +569,7 @@ int real_main(int argc, char **argv)
     while (!do_shutdown) {
         msg = receive_msg(fd, src_eth_addr);
         if (msg) {
-            handle_msg(msg, fd_socket);
+            handle_msg(msg);
         }
 
         count++;
@@ -689,7 +582,6 @@ int real_main(int argc, char **argv)
 
     return 0;
 }
-
 
 int main(int argc, char **argv)
 {

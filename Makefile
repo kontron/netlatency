@@ -82,7 +82,7 @@ INSTALL_TARGETS += install-rx
 INSTALL_TARGETS += install-tx
 INSTALL_TARGETS += install-scripts
 
-rx_SOURCES := rx.c domain_socket.c timer.c
+rx_SOURCES := rx.c timer.c
 rx_OBJECTS := $(addprefix $(o),$(rx_SOURCES:.c=.o))
 
 HELPER_SCRIPTS := latency histogen reportgen netlatency-calc
@@ -102,7 +102,7 @@ install-rx: $(o)netlatency-rx
 	$(INSTALL) -m 0755 $(o)netlatency-rx $(DESTDIR)$(SBINDIR)/
 
 
-tx_SOURCES := tx.c timer.c domain_socket.c
+tx_SOURCES := tx.c timer.c
 tx_OBJECTS := $(addprefix $(o),$(tx_SOURCES:.c=.o))
 
 $(o)netlatency-tx: $(tx_OBJECTS)

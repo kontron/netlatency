@@ -133,7 +133,6 @@ char *timespec_to_iso_string(struct timespec *time)
         nsec = time->tv_nsec;
     }
 
-
     s = g_time_val_to_iso8601(&t);
 
     /* remove trailing 'Z' */

@@ -24,6 +24,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -212,47 +213,65 @@ static int handle_test_packet(struct msghdr *msg,
     return 0;
 }
 
+int add_json_timestamp(json_t *object, char *name, struct timespec *ts)
+{
+    char *s;
+    json_t *n;
+    json_t *v;
+
+    /* Add to names array */
+    n = json_object_get(object, "names");
+    if (n == NULL) {
+        assert(0);
+    }
+    json_array_append_new(n, json_string(name));
+
+    /* Add to values array */
+    v = json_object_get(object, "values");
+    if (v == NULL) {
+        assert(0);
+    }
+
+    s = timespec_to_iso_string(ts);
+    json_array_append_new(v, json_string(s));
+
+    return 0;
+}
+
+
 static char *dump_json_test_packet(struct test_packet_result *result)
 {
-    json_t *j;
     char *s;
-    char *s_interval_start;
-    char *s_tx_user;
-    char *s_tx_user_target;
-    char *s_tx_kernel_last;
-    char *s_rx_hw;
-    char *s_rx_user;
 
-    s_interval_start = timespec_to_iso_string(&result->tp->timestamps[TS_T0]);
-    s_tx_user = timespec_to_iso_string(&result->tp->timestamps[TS_PROG_SEND]);
-    s_tx_user_target = timespec_to_iso_string(&result->tp->timestamps[TS_T0]);
-    s_tx_kernel_last = timespec_to_iso_string(&result->tp->timestamps[TS_LAST_KERNEL_SW_TX]);
-    s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
-    s_rx_user = timespec_to_iso_string(&result->rx_user_ts);
+    g_assert(result);
+    g_assert(result->tp);
 
-    j = json_pack("{sss{sisisisisissssssssss}}",
-                  "type", "rx-packet",
-                  "object",
-                  "stream-id", result->tp->stream_id,
-                  "sequence-number", result->tp->seq,
-                  "interval-usec", result->tp->interval_usec,
-                  "offset-usec", result->tp->offset_usec,
-                  "interval-start-timestamp", s_interval_start,
-                  "tx-user-timestamp", s_tx_user,
-                  "tx-user-target-timestamp", s_tx_user_target,
-                  "tx-kernel-last-timestamp", s_tx_kernel_last,
-                  "rx-hw-timestamp", s_rx_hw,
-                  "rx-user-timestamp", s_rx_user
-    );
+    json_t *root = json_object();
+    json_t *object = json_object();
+    json_t *timestamps = json_object();
 
-    g_free(s_interval_start);
-    g_free(s_tx_user);
-    g_free(s_tx_user_target);
-    g_free(s_rx_hw);
-    g_free(s_rx_user);
+    json_object_set_new(root, "type", json_string("rx-packet"));
+    json_object_set_new(root, "object", object);
 
-    s = json_dumps(j, JSON_COMPACT);
-    json_decref(j);
+    json_object_set_new(object, "stream-id", json_integer(result->tp->stream_id));
+    json_object_set_new(object, "sequence-number", json_integer(result->tp->seq));
+    json_object_set_new(object, "interval-usec", json_integer(result->tp->interval_usec));
+    json_object_set_new(object, "offset-usec", json_integer(result->tp->offset_usec));
+
+    json_object_set_new(object, "timestamps", timestamps);
+    json_object_set_new(timestamps, "names", json_array());
+    json_object_set_new(timestamps, "values", json_array());
+
+    add_json_timestamp(timestamps, "interval-start", &result->tp->timestamps[TS_T0]);
+    add_json_timestamp(timestamps, "tx-wakeup", NULL);
+    add_json_timestamp(timestamps, "tx-program", &result->tp->timestamps[TS_PROG_SEND]);
+    add_json_timestamp(timestamps, "tx-kernel-netsched", &result->tp->timestamps[TS_LAST_KERNEL_SCHED]);
+    add_json_timestamp(timestamps, "tx-kernel-driver", &result->tp->timestamps[TS_LAST_KERNEL_SW_TX]);
+    add_json_timestamp(timestamps, "rx-hardware", &result->rx_hw_ts);
+    add_json_timestamp(timestamps, "rx-kernerl-driver", NULL);
+    add_json_timestamp(timestamps, "rx-program", &result->rx_user_ts);
+
+    s = json_dumps(root, JSON_COMPACT);
 
     return s;
 }

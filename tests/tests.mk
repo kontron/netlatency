@@ -18,7 +18,7 @@ $(o)tests/%.o: tests/%.c
 $(o)tests/test-timer: $(o)tests/test-timer.o
 	$(call link_tgt,tests)
 
-$(o)tests/test-rx: $(o)tests/test-rx.o
+$(o)tests/test-rx: $(o)tests/test-rx.o $(o)timer.o
 	$(call link_tgt,tests)
 
 test-%: $(o)tests/test-%

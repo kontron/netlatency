@@ -11,27 +11,6 @@
 #include <glib/gstdio.h>
 
 
-void timespec_diff(const struct timespec *a, const struct timespec *b,
-                   struct timespec *result)
-{
-    (void)a;
-    (void)b;
-    (void)result;
-}
-
-char *timespec_to_iso_string(struct timespec *time)
-{
-    (void)time;
-    return NULL;
-}
-
-int open_server_socket(char *socket_path)
-{
-    (void)socket_path;
-    return -1;
-}
-
-
 
 #define main old_main
 #include "../rx.c"
@@ -136,21 +115,42 @@ static void test_is_broadcast_addr(void)
     g_assert_false(is_broadcast_addr(addr));
 }
 
+static void test_dump_json_test_packet(void)
+{
+    struct test_packet_result result;
+    char buf[1024];
+    struct ether_testpacket *tp = (void*)buf;
+    char *str = NULL;
+
+    memset(&result, 0, sizeof(result));
+    memset(buf, 0, sizeof(buf));
+    result.tp = tp;
+
+    str = dump_json_test_packet(&result);
+    g_assert(str != NULL);
+    g_assert_cmpstr(str, ==,
+    "{\"type\":\"rx-packet\",\"object\":{\"stream-id\":0,\"sequence-number\":0,\"interval-usec\":0,\"offset-usec\":0,\"timestamps\":{\"names\":[\"interval-start\",\"tx-wakeup\",\"tx-program\",\"tx-kernel-netsched\",\"tx-kernel-driver\",\"rx-hardware\",\"rx-kernerl-driver\",\"rx-program\"],\"values\":[\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\"]}}}");
+    g_free(str);
+}
+
 
 int main(int argc, char** argv)
 {
-	g_test_init(&argc, &argv, NULL);
+    g_test_init(&argc, &argv, NULL);
 
-	g_test_add_func("/rx/check_sequence_num/valid",
-            test_check_sequence_num);
-	g_test_add_func("/rx/check_sequence_num/stream_id",
-            test_check_sequence_num_with_stream_id);
-	g_test_add_func("/rx/check_sequence_num/stream_id_max",
-            test_check_sequence_num_stream_id_max);
+    g_test_add_func("/rx/check_sequence_num/valid",
+         test_check_sequence_num);
+    g_test_add_func("/rx/check_sequence_num/stream_id",
+           test_check_sequence_num_with_stream_id);
+    g_test_add_func("/rx/check_sequence_num/stream_id_max",
+           test_check_sequence_num_stream_id_max);
 
-	g_test_add_func("/rx/is_broadcast_addr",
-            test_is_broadcast_addr);
+    g_test_add_func("/rx/is_broadcast_addr",
+           test_is_broadcast_addr);
 
-	return g_test_run();
+    g_test_add_func("/rx/dump_json_test_packet",
+            test_dump_json_test_packet);
+
+    return g_test_run();
 }
 

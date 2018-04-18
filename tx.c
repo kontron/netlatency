@@ -253,7 +253,8 @@ static void tp_set_timestamp(struct ether_testpacket *tp, int tsnum, struct
     }
 }
 
-static void get_tx_timestamp(int fd, struct timespec *ts)
+static void get_tx_timestamps(int fd, struct timespec *ts1,
+        struct timespec *ts2)
 {
     struct msghdr msg;
     char control[256];
@@ -262,7 +263,8 @@ static void get_tx_timestamp(int fd, struct timespec *ts)
     struct cmsghdr *cm;
     struct timespec *_ts;
 
-    memset(ts, 0, sizeof(*ts));
+    memset(ts1, 0, sizeof(*ts1));
+    memset(ts2, 0, sizeof(*ts2));
 
     memset(control, 0, sizeof(control));
     memset(&msg, 0, sizeof(msg));
@@ -272,13 +274,21 @@ static void get_tx_timestamp(int fd, struct timespec *ts)
     msg.msg_control = control;
     msg.msg_controllen = sizeof(control);
 
+    /*
+     * Unfortunately the kernel doesn't tell us the type of the timestamp.
+     * There is no sock_extended_err CMSG for a AF_PACKET socket. Might be a
+     * bug in the kernel. Therefore, we assume that the first timestamp we
+     * receive is the one of the network scheduler and the second one the one
+     * of the driver.
+     */
     while (recvmsg(fd, &msg, MSG_DONTWAIT | MSG_ERRQUEUE) > 0) {
         for (cm = CMSG_FIRSTHDR(&msg); cm != NULL; cm = CMSG_NXTHDR(&msg, cm)) {
             if (cm->cmsg_level == SOL_SOCKET
                     && cm->cmsg_type == SO_TIMESTAMPING
                     && cm->cmsg_len >= sizeof(struct timespec) * 3) {
                 _ts = (struct timespec *)CMSG_DATA(cm);
-                *ts = *_ts;
+                *ts1 = *ts2;
+                *ts2 = *_ts;
             }
         }
     }
@@ -291,7 +301,8 @@ static void *timer_thread(void *params)
     struct timespec next;
     struct timespec interval_start;
     struct timespec interval;
-    struct timespec last_tx_ts;
+    struct timespec last_sched_tx_ts;
+    struct timespec last_sw_tx_ts;
     gint64 count = 0;
     int size;
 
@@ -336,7 +347,7 @@ static void *timer_thread(void *params)
 
     while (!do_shutdown) {
         /* get timestamp of last transmitted packet */
-        get_tx_timestamp(parm->fd, &last_tx_ts);
+        get_tx_timestamps(parm->fd, &last_sched_tx_ts, &last_sw_tx_ts);
         size = sizeof(struct ether_testpacket);
 
         /* if interval is 0 send as fast as possible */
@@ -348,7 +359,8 @@ static void *timer_thread(void *params)
         /* update timestamps in packet */
         tp_set_timestamp(tp, TS_T0, &interval_start);
         if (!o_small_pkt_mode) {
-            tp_set_timestamp(tp, TS_LAST_KERNEL_SW_TX, &last_tx_ts);
+            tp_set_timestamp(tp, TS_LAST_KERNEL_SCHED, &last_sched_tx_ts);
+            tp_set_timestamp(tp, TS_LAST_KERNEL_SW_TX, &last_sw_tx_ts);
             tp_set_timestamp(tp, TS_PROG_SEND, NULL);
             size += sizeof(struct timespec) * 3;
         } else {
@@ -410,8 +422,8 @@ int main(int argc, char **argv)
     }
 
     /* enable transmit timestamping */
-    opt = 0;
     opt = SOF_TIMESTAMPING_TX_SOFTWARE
+          | SOF_TIMESTAMPING_TX_SCHED
           | SOF_TIMESTAMPING_SOFTWARE;
     rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
     if (rc == -1) {

@@ -1,6 +1,17 @@
 # Netlatency
 
-The netlatency toolset is used to measure the latency and jitter parameters of an ethernet connection. The netlatency-tx generates UDP packets with embedded system timestamp (tx-user) and sequence number. The netlantency-rx captures these packets and dumps the collected receiving information such as hardware timestamp from the linux stack and the receiving system time (rx-user). netlatency-ry can detect receiving errors (dropped packets or sequence error).
+The netlatency toolset is used to measure the latency and jitter parameters
+of an ethernet connection. The netlatency-tx generates UDP packets with
+embedded system timestamp (tx-user) and sequence number. The netlantency-rx
+captures these packets and dumps the collected receiving information such
+as hardware timestamp from the linux stack and the receiving system time
+(rx-user). netlatency-ry can detect receiving errors (dropped packets or
+sequence error).
+
+## Shortcomings
+
+There is no byte order translation. Therefore, the sender and receiver
+application must run on the same CPU architecture.
 
 ## netlatency-tx
 

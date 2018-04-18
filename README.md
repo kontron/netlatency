@@ -86,6 +86,39 @@ application must run on the same CPU architecture.
     }
 
     {
+      "type": "rx-packet",
+      "object": {
+        "sequence-number": 1,
+        "stream-id": result->stream_id,
+        "interval-usec": result->interval_usec,
+        "offset-usec": result->offset_usec,
+        "packet-size": result->packet_size,
+        "timestamps": {
+          "names": [
+            "interval-start":,
+            "tx-wakeup",
+            "tx-program",
+            "tx-kernel-netsched",
+            "tx-kernel-driver",
+            "rx-hardware",
+            "rx-kernel-driver",
+            "rx-program",
+          ]
+          "values": [
+            <TIMESTAMP>,
+            <TIMESTAMP>,
+            <TIMESTAMP>,
+            <TIMESTAMP>,
+            <TIMESTAMP>,
+            <TIMESTAMP>,
+            <TIMESTAMP>,
+            <TIMESTAMP>,
+          ],
+        }
+      }
+    }
+
+    {
       "type": "rx-error",
       "object": {
         "dropped-packets": 1,

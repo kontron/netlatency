@@ -328,7 +328,7 @@ static void *timer_thread(void *params)
         memcpy(&tp->ts_tx, &now, sizeof(struct timespec));
         memcpy(&tp->ts_tx_kernel, last_tx_ts, sizeof(struct timespec));
 
-        write(parm->fd, buf, o_packet_size);
+        send(parm->fd, buf, o_packet_size, 0);
 
         tp->seq++;
         count++;

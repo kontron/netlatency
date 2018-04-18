@@ -32,18 +32,26 @@
 
 #define TEST_PACKET_ETHER_TYPE 0x0808
 
+enum {
+	TS_T0 = 0,
+	TS_PROG_SEND,
+	TS_LAST_KERNEL_SCHED,
+	TS_LAST_KERNEL_SW_TX,
+	TS_LAST_KERNEL_HW_TX,
+
+	/* this must be the last one */
+	TS_MAX_NUM,
+	TS_MAX_SHORT = 1,
+};
+
 struct ether_testpacket {
 	struct ether_header hdr;
 	guint8 version;
+	guint8 stream_id;
 	guint32 seq;
-	struct timespec ts_interval_start;  /* timestamp of interval start */
-	struct timespec ts_tx_target;       /* timestamp of wished target time */
-	struct timespec ts_tx;              /* timestamp before sending */
-	struct timespec ts_tx_kernel;       /* timestamp of last packet before sending from kernel */
-	guint32 interval_usec;
-	guint32 offset_usec;
-	guint32 packet_size;
-	guint32 stream_id;
+	guint16 interval_usec;
+	guint16 offset_usec;
+	struct timespec timestamps[];
 } __attribute__((__packed__));
 
 #endif

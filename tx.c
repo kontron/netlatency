@@ -66,16 +66,18 @@ static gint o_count = 0;
 static gint o_cpu_number = -1;
 static gint o_interval_ms = 1000;
 static gint o_interval_offset_usec = 0;
-static gint o_packet_size = -1;
+static gint o_padding = -1;
 static gint o_sched_prio = 99;
 static gint o_stream_id = 0;
 static gint o_verbose = 0;
 static gint o_version = 0;
+static gint o_small_pkt_mode = 0;
 static int o_queue_prio = -1;
 
 static gint do_shutdown = 0;
 
-struct ether_testpacket _tp, *tp = &_tp;
+static char tp_buf[1518];
+struct ether_testpacket *tp = (void*)tp_buf;
 
 int eth_open(const char *device)
 {
@@ -128,8 +130,8 @@ static GOptionEntry entries[] = {
             &o_cpu_number,
             "Run timer thread on specified CPU(s) (default is all)", "CPU" },
     { "padding",     'P', 0, G_OPTION_ARG_INT,
-            &o_packet_size,
-            "Set the packet size", "SIZE" },
+            &o_padding,
+            "Pad packet to given size", "SIZE" },
     { "prio",        'p', 0, G_OPTION_ARG_INT,
             &o_sched_prio,
             "Set scheduler priority (default is 99)", "PRIO" },
@@ -139,6 +141,9 @@ static GOptionEntry entries[] = {
     { "queue-prio",  'Q', 0, G_OPTION_ARG_INT,
             &o_queue_prio,
             "Set skb priority", "PRIO" },
+    { "small-pkt-mode", 'S', 0, G_OPTION_ARG_NONE,
+            &o_small_pkt_mode,
+            "Send small packets (<64 bytes), only include important timestamps", NULL },
     { "verbose",     'v', 0, G_OPTION_ARG_NONE,
             &o_verbose,
             "Be verbose", NULL },
@@ -238,23 +243,59 @@ struct thread_param {
 
 struct thread_param thread_param;
 
-static void *timer_thread(void *params)
+static void tp_set_timestamp(struct ether_testpacket *tp, int tsnum, struct
+        timespec *ts)
 {
-    struct thread_param *parm = params;
-    struct sched_param schedp;
-    struct timespec now;
-    struct timespec next;
-    struct timespec interval_start;
-    struct timespec interval;
-    struct timespec _last_tx_ts = { 0 }, *last_tx_ts = &_last_tx_ts;
-    gint64 count = 0;
+    if (ts == NULL) {
+        clock_gettime(CLOCK_REALTIME, &tp->timestamps[tsnum]);
+    } else {
+        memcpy(&tp->timestamps[tsnum], ts, sizeof(struct timespec));
+    }
+}
+
+static void get_tx_timestamp(int fd, struct timespec *ts)
+{
     struct msghdr msg;
     char control[256];
     char buf[512];
     struct iovec iov = { buf, sizeof(buf) };
     struct cmsghdr *cm;
+    struct timespec *_ts;
 
-    pthread_setname_np(pthread_self(), "TX RT timer");
+    memset(ts, 0, sizeof(*ts));
+
+    memset(control, 0, sizeof(control));
+    memset(&msg, 0, sizeof(msg));
+
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_control = control;
+    msg.msg_controllen = sizeof(control);
+
+    while (recvmsg(fd, &msg, MSG_DONTWAIT | MSG_ERRQUEUE) > 0) {
+        for (cm = CMSG_FIRSTHDR(&msg); cm != NULL; cm = CMSG_NXTHDR(&msg, cm)) {
+            if (cm->cmsg_level == SOL_SOCKET
+                    && cm->cmsg_type == SO_TIMESTAMPING
+                    && cm->cmsg_len >= sizeof(struct timespec) * 3) {
+                _ts = (struct timespec *)CMSG_DATA(cm);
+                *ts = *_ts;
+            }
+        }
+    }
+}
+
+static void *timer_thread(void *params)
+{
+    struct thread_param *parm = params;
+    struct sched_param schedp;
+    struct timespec next;
+    struct timespec interval_start;
+    struct timespec interval;
+    struct timespec last_tx_ts;
+    gint64 count = 0;
+    int size;
+
+    pthread_setname_np(pthread_self(), "TX RT thread");
 
     if (o_cpu_number != -1) {
         cpu_set_t cpuset;
@@ -290,29 +331,13 @@ static void *timer_thread(void *params)
 
     tp->interval_usec = o_interval_ms * 1000;
     tp->offset_usec = o_interval_offset_usec;
-    tp->packet_size = o_packet_size;
     tp->stream_id = o_stream_id;
     tp->version = 1;
 
     while (!do_shutdown) {
         /* get timestamp of last transmitted packet */
-        memset(control, 0, sizeof(control));
-        memset(&msg, 0, sizeof(msg));
-
-        msg.msg_iov = &iov;
-        msg.msg_iovlen = 1;
-        msg.msg_control = control;
-        msg.msg_controllen = sizeof(control);
-
-        while (recvmsg(parm->fd, &msg, MSG_DONTWAIT | MSG_ERRQUEUE) > 0) {
-            for (cm = CMSG_FIRSTHDR(&msg); cm != NULL; cm = CMSG_NXTHDR(&msg, cm)) {
-                if (cm->cmsg_level == SOL_SOCKET
-                        && cm->cmsg_type == SO_TIMESTAMPING
-                        &&  cm->cmsg_len >= sizeof(struct timespec) * 3) {
-                    last_tx_ts = (struct timespec *)CMSG_DATA(cm);
-                }
-            }
-        }
+        get_tx_timestamp(parm->fd, &last_tx_ts);
+        size = sizeof(struct ether_testpacket);
 
         /* if interval is 0 send as fast as possible */
         if (o_interval_ms != 0) {
@@ -320,15 +345,17 @@ static void *timer_thread(void *params)
                     &next, &interval_start);
         }
 
+        /* update timestamps in packet */
+        tp_set_timestamp(tp, TS_T0, &interval_start);
+        if (!o_small_pkt_mode) {
+            tp_set_timestamp(tp, TS_LAST_KERNEL_SW_TX, &last_tx_ts);
+            tp_set_timestamp(tp, TS_PROG_SEND, NULL);
+            size += sizeof(struct timespec) * 3;
+        } else {
+            size += sizeof(struct timespec);
+        }
 
-        /* update new timestamp in packet */
-        memcpy(&tp->ts_interval_start, &interval_start, sizeof(struct timespec));
-        memcpy(&tp->ts_tx_target, &next, sizeof(struct timespec));
-        clock_gettime(CLOCK_REALTIME, &now);
-        memcpy(&tp->ts_tx, &now, sizeof(struct timespec));
-        memcpy(&tp->ts_tx_kernel, last_tx_ts, sizeof(struct timespec));
-
-        send(parm->fd, buf, o_packet_size, 0);
+        send(parm->fd, (char*)tp, MAX(size, o_padding), 0);
 
         tp->seq++;
         count++;
@@ -367,13 +394,6 @@ int main(int argc, char **argv)
 
     if (argc < 2) {
         usage();
-        return -1;
-    }
-
-    if (o_packet_size == -1) {
-        o_packet_size = sizeof(struct ether_testpacket);
-    } else if (o_packet_size < (gint)sizeof(struct ether_testpacket)) {
-        printf("not supported packet size\n");
         return -1;
     }
 
@@ -432,8 +452,7 @@ int main(int argc, char **argv)
     memcpy(tp->hdr.ether_shost, &ifopts.ifr_hwaddr.sa_data, ETH_ALEN);
 
     /* ethertype */
-    tp->hdr.ether_type = TEST_PACKET_ETHER_TYPE;
-
+    tp->hdr.ether_type = ntohs(TEST_PACKET_ETHER_TYPE);
 
     sigemptyset(&sigset);
     signal(SIGINT, signal_handler);

@@ -178,19 +178,10 @@ static int check_sequence_num(guint32 stream_id, guint32 seq,
 }
 
 struct test_packet_result {
-    guint32 seq;
-    guint32 interval_usec;
-    guint32 offset_usec;
-    guint32 stream_id;
-    guint32 packet_size;
+    struct ether_testpacket *tp;
 
-    struct timespec ts_interval_start;
-    struct timespec tx_user_target_ts;
-    struct timespec tx_user_ts;
-    struct timespec tx_kernel_ts_last;
     struct timespec rx_hw_ts;
     struct timespec rx_user_ts;
-    struct timespec latency_ts;
 
     gint dropped;
     gboolean seq_error;
@@ -205,20 +196,8 @@ static int handle_test_packet(struct msghdr *msg,
 
     tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
 
-    /* copy info from testpacket */
-    result->seq = tp->seq;
-    result->interval_usec = tp->interval_usec;
-    result->offset_usec = tp->offset_usec;
-    result->packet_size = tp->packet_size;
-    result->stream_id = tp->stream_id;
-
-    memcpy(&result->ts_interval_start, &tp->ts_interval_start, sizeof(struct timespec));
-    memcpy(&result->tx_user_ts, &tp->ts_tx, sizeof(struct timespec));
-    memcpy(&result->tx_kernel_ts_last, &tp->ts_tx_kernel, sizeof(struct timespec));
-    memcpy(&result->tx_user_target_ts, &tp->ts_tx_target, sizeof(struct timespec));
-
-    /* calc diff between timestamp in testpacket hardware timestamp */
-    timespec_diff(&tp->ts_tx_target, &result->rx_hw_ts, &result->latency_ts);
+    /* remember test packet */
+    result->tp = tp;
 
     /* calc dropped count and sequence error */
     check_sequence_num(tp->stream_id, tp->seq, &result->dropped,
@@ -238,21 +217,20 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     char *s_rx_hw;
     char *s_rx_user;
 
-    s_interval_start = timespec_to_iso_string(&result->ts_interval_start);
-    s_tx_user = timespec_to_iso_string(&result->tx_user_ts);
-    s_tx_user_target = timespec_to_iso_string(&result->tx_user_target_ts);
-    s_tx_kernel_last = timespec_to_iso_string(&result->tx_kernel_ts_last);
+    s_interval_start = timespec_to_iso_string(&result->tp->timestamps[TS_T0]);
+    s_tx_user = timespec_to_iso_string(&result->tp->timestamps[TS_PROG_SEND]);
+    s_tx_user_target = timespec_to_iso_string(&result->tp->timestamps[TS_T0]);
+    s_tx_kernel_last = timespec_to_iso_string(&result->tp->timestamps[TS_LAST_KERNEL_SW_TX]);
     s_rx_hw = timespec_to_iso_string(&result->rx_hw_ts);
     s_rx_user = timespec_to_iso_string(&result->rx_user_ts);
 
-    j = json_pack("{sss{sisisisisissssssssssss}}",
+    j = json_pack("{sss{sisisisisissssssssss}}",
                   "type", "rx-packet",
                   "object",
-                  "stream-id", result->stream_id,
-                  "sequence-number", result->seq,
-                  "interval-usec", result->interval_usec,
-                  "offset-usec", result->offset_usec,
-                  "packet-size", result->packet_size,
+                  "stream-id", result->tp->stream_id,
+                  "sequence-number", result->tp->seq,
+                  "interval-usec", result->tp->interval_usec,
+                  "offset-usec", result->tp->offset_usec,
                   "interval-start-timestamp", s_interval_start,
                   "tx-user-timestamp", s_tx_user,
                   "tx-user-target-timestamp", s_tx_user_target,
@@ -384,44 +362,43 @@ static int handle_msg(struct msghdr *msg, int fd_socket)
     char *json_rx_packet_str = NULL;
     char *json_rx_error_str = NULL;
 
+    struct ether_header *hdr = msg->msg_iov->iov_base;
+    guint16 ethertype = ntohs(hdr->ether_type);
     clock_gettime(CLOCK_REALTIME, &result.rx_user_ts);
 
     /* build result message string */
-    {
-        switch (o_capture_ethertype) {
-        case TEST_PACKET_ETHER_TYPE:
-            handle_test_packet(msg, &result);
+    switch (ethertype) {
+    case TEST_PACKET_ETHER_TYPE:
+        handle_test_packet(msg, &result);
 
-
-            if (result.dropped || result.seq_error) {
-                json_rx_error_str = dump_json_error(&result);
-            }
-            if (json_rx_error_str) {
-                if (!o_quiet) {
-                    printf("%s\n", json_rx_error_str);
-                    fflush(stdout);
-                }
-                free(json_rx_error_str);
-            }
-
-            json_rx_packet_str = dump_json_test_packet(&result);
-            if (json_rx_packet_str) {
-                if (!o_quiet) {
-                    printf("%s\n", json_rx_packet_str);
-                    fflush(stdout);
-                }
-
-                if (fd_socket != -1) {
-                    rc = handle_status_socket(fd_socket, json_rx_packet_str);
-                }
-                free(json_rx_packet_str);
-            }
-
-            break;
-        default:
-            printf("tbd ... other packet\n");
-            break;
+        if (result.dropped || result.seq_error) {
+            json_rx_error_str = dump_json_error(&result);
         }
+        if (json_rx_error_str) {
+            if (!o_quiet) {
+                printf("%s\n", json_rx_error_str);
+                fflush(stdout);
+            }
+            free(json_rx_error_str);
+        }
+
+        json_rx_packet_str = dump_json_test_packet(&result);
+        if (json_rx_packet_str) {
+            if (!o_quiet) {
+                printf("%s\n", json_rx_packet_str);
+                fflush(stdout);
+            }
+
+            if (fd_socket != -1) {
+                rc = handle_status_socket(fd_socket, json_rx_packet_str);
+            }
+            free(json_rx_packet_str);
+        }
+
+        break;
+    default:
+        printf("tbd ... other packet\n");
+        break;
     }
 
     return rc;
@@ -677,7 +654,7 @@ int real_main(int argc, char **argv)
     }
 
     sigemptyset(&sigset);
-//	sigaddset(&sigset, SIGALARM);
+//  sigaddset(&sigset, SIGALARM);
 
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);

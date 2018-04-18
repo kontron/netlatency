@@ -122,7 +122,7 @@ char *timespec_to_iso_string(struct timespec *time)
     GString *iso_string;
     gchar *s;
     GTimeVal t;
-    guint64 nsec = 0;
+    guint32 nsec = 0;
 
     /* copy to GTimeVal for converting ... append nsec later */
     t.tv_sec = 0;
@@ -139,7 +139,7 @@ char *timespec_to_iso_string(struct timespec *time)
     iso_string = g_string_new_len(s, strlen(s)-1);
     g_free(s);
 
-    g_string_append_printf(iso_string, ".%09ld", nsec);
+    g_string_append_printf(iso_string, ".%09d", nsec);
     g_string_append_printf(iso_string, "Z");
 
     return g_string_free(iso_string, FALSE);

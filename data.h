@@ -44,6 +44,6 @@ struct ether_testpacket {
 	guint32 offset_usec;
 	guint32 packet_size;
 	guint32 stream_id;
-};
+} __attribute__((__packed__));
 
 #endif

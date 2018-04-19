@@ -287,7 +287,9 @@ static void get_tx_timestamps(int fd, struct timespec *ts1,
                     && cm->cmsg_type == SO_TIMESTAMPING
                     && cm->cmsg_len >= sizeof(struct timespec) * 3) {
                 _ts = (struct timespec *)CMSG_DATA(cm);
+#ifdef SOF_TIMESTAMPING_TX_SCHED
                 *ts1 = *ts2;
+#endif
                 *ts2 = *_ts;
             }
         }
@@ -425,7 +427,9 @@ int main(int argc, char **argv)
 
     /* enable transmit timestamping */
     opt = SOF_TIMESTAMPING_TX_SOFTWARE
+#ifdef SOF_TIMESTAMPING_TX_SCHED
           | SOF_TIMESTAMPING_TX_SCHED
+#endif
           | SOF_TIMESTAMPING_SOFTWARE;
     rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
     if (rc == -1) {

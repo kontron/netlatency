@@ -59,13 +59,20 @@
 #endif
 
 #define MAX_STREAM_ID 16
+
+enum {
+    TS_KERNEL_HW_RX,
+    TS_KERNEL_SW_RX,
+    TS_PROG_RECV,
+
+    MAX_TS_RX
+};
 struct result {
     struct ether_testpacket *tp;
     struct ether_testpacket *last_tp;
 
-    struct timespec rx_hw_ts;
-    struct timespec rx_sw_ts;
-    struct timespec rx_user_ts;
+    struct timespec *rx_tss;
+    struct timespec *last_rx_tss;
 
     gint dropped;
     gboolean seq_error;
@@ -182,12 +189,20 @@ static int handle_test_packet(struct msghdr *msg,
     struct ether_testpacket *tp = (void*)msg->msg_iov->iov_base;
     int rc;
 
-    get_hw_timestamps(msg, &result->rx_sw_ts, &result->rx_hw_ts);
-
     /* remember test packet */
     g_free(result->last_tp);
+    g_free(result->last_rx_tss);
     result->last_tp = result->tp;
+    result->last_rx_tss = result->rx_tss;
     result->tp = g_memdup(tp, sizeof(*tp));
+    result->rx_tss = g_new0(struct timespec, MAX_TS_RX);
+
+    /* get rx timestamp */
+    clock_gettime(CLOCK_REALTIME, &result->rx_tss[TS_PROG_RECV]);
+
+    get_hw_timestamps(msg,
+            &result->rx_tss[TS_KERNEL_SW_RX],
+            &result->rx_tss[TS_KERNEL_HW_RX]);
 
     /* calc dropped count and sequence error */
     rc = check_sequence_num(result);
@@ -195,7 +210,9 @@ static int handle_test_packet(struct msghdr *msg,
     /* if there was an error discard last_tp */
     if (rc) {
         g_free(result->last_tp);
+        g_free(result->last_rx_tss);
         result->last_tp = NULL;
+        result->last_rx_tss = NULL;
     }
 
     return 0;
@@ -260,9 +277,9 @@ static char *dump_json_test_packet(struct result *result)
     add_json_timestamp(timestamps, "tx-program", &result->last_tp->timestamps[TS_PROG_SEND]);
     add_json_timestamp(timestamps, "tx-kernel-netsched", ts = &result->tp->timestamps[TS_LAST_KERNEL_SCHED]);
     add_json_timestamp(timestamps, "tx-kernel-driver", ts = &result->tp->timestamps[TS_LAST_KERNEL_SW_TX]);
-    add_json_timestamp(timestamps, "rx-hardware", &result->rx_hw_ts);
-    add_json_timestamp(timestamps, "rx-kernel-driver", &result->rx_sw_ts);
-    add_json_timestamp(timestamps, "rx-program", &result->rx_user_ts);
+    add_json_timestamp(timestamps, "rx-hardware", &result->last_rx_tss[TS_KERNEL_HW_RX]);
+    add_json_timestamp(timestamps, "rx-kernel-driver", &result->last_rx_tss[TS_KERNEL_SW_RX]);
+    add_json_timestamp(timestamps, "rx-program", &result->last_rx_tss[TS_PROG_RECV]);
 
     s = json_dumps(root, JSON_COMPACT);
 
@@ -309,8 +326,6 @@ static int handle_msg(struct msghdr *msg)
             return 0;
         }
 
-        /* get rx timestamp */
-        clock_gettime(CLOCK_REALTIME, &result->rx_user_ts);
         handle_test_packet(msg, result);
 
         if (result->dropped || result->seq_error) {

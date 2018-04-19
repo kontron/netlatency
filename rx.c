@@ -58,6 +58,21 @@
 #define VERSION "dev"
 #endif
 
+#define MAX_STREAM_ID 16
+struct result {
+    struct ether_testpacket *tp;
+    struct ether_testpacket *last_tp;
+
+    struct timespec rx_hw_ts;
+    struct timespec rx_sw_ts;
+    struct timespec rx_user_ts;
+
+    gint dropped;
+    gboolean seq_error;
+};
+
+static struct result results[MAX_STREAM_ID];
+
 static gchar *help_description = NULL;
 static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
 static gint o_count = 0;
@@ -148,70 +163,40 @@ static struct msghdr *receive_msg(int fd, struct ether_addr *myaddr)
     return &msg;
 }
 
-#define MAX_STREAM_ID 32
-
-static int check_sequence_num(guint32 stream_id, guint32 seq,
-        gint32 *dropped_packets, gboolean *sequence_error,
-        gboolean reset_last_seq)
+static int check_sequence_num(struct result *result)
 {
-    static guint32 last_seq_list[MAX_STREAM_ID] = {0};
-    guint32 *last_seq = NULL;
-
-    if (stream_id > MAX_STREAM_ID) {
-        return -1;
+    if (!result->last_tp) {
+        result->dropped = 0;
+        result->seq_error = 0;
+    } else {
+        result->dropped = MAX((gint)result->tp->seq - (gint)result->last_tp->seq - 1, 0);
+        result->seq_error = result->tp->seq <= result->last_tp->seq;
     }
 
-    last_seq = &last_seq_list[stream_id];
-
-    if (reset_last_seq) {
-        *last_seq = 0;
-    }
-
-    if (*last_seq == 0) {
-        *last_seq = seq;
-        *dropped_packets = 0;
-        *sequence_error = 0;
-        return 0;
-    }
-
-    *dropped_packets = seq - *last_seq - 1;
-    *sequence_error = seq <= *last_seq;
-
-    *last_seq = seq;
-
-    if (*dropped_packets || *sequence_error) {
-        return 1;
-    }
-
-    return 0;
+    return result->dropped || result->seq_error;
 }
 
-struct test_packet_result {
-    struct ether_testpacket *tp;
-
-    struct timespec rx_hw_ts;
-    struct timespec rx_sw_ts;
-    struct timespec rx_user_ts;
-
-    gint dropped;
-    gboolean seq_error;
-};
-
 static int handle_test_packet(struct msghdr *msg,
-        struct test_packet_result *result)
+        struct result *result)
 {
-    struct ether_testpacket *tp;
+    struct ether_testpacket *tp = (void*)msg->msg_iov->iov_base;
+    int rc;
 
     get_hw_timestamps(msg, &result->rx_sw_ts, &result->rx_hw_ts);
 
-    tp = (struct ether_testpacket*)msg->msg_iov->iov_base;
-
     /* remember test packet */
-    result->tp = tp;
+    g_free(result->last_tp);
+    result->last_tp = result->tp;
+    result->tp = g_memdup(tp, sizeof(*tp));
 
     /* calc dropped count and sequence error */
-    check_sequence_num(tp->stream_id, tp->seq, &result->dropped,
-            &result->seq_error, FALSE);
+    rc = check_sequence_num(result);
+
+    /* if there was an error discard last_tp */
+    if (rc) {
+        g_free(result->last_tp);
+        result->last_tp = NULL;
+    }
 
     return 0;
 }
@@ -241,13 +226,18 @@ int add_json_timestamp(json_t *object, char *name, struct timespec *ts)
     return 0;
 }
 
-
-static char *dump_json_test_packet(struct test_packet_result *result)
+static char *dump_json_test_packet(struct result *result)
 {
+    struct timespec *ts;
     char *s;
 
     g_assert(result);
     g_assert(result->tp);
+
+    /* we have to wait for at least two packets */
+    if (!result->last_tp) {
+        return NULL;
+    }
 
     json_t *root = json_object();
     json_t *object = json_object();
@@ -256,20 +246,20 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     json_object_set_new(root, "type", json_string("rx-packet"));
     json_object_set_new(root, "object", object);
 
-    json_object_set_new(object, "stream-id", json_integer(result->tp->stream_id));
-    json_object_set_new(object, "sequence-number", json_integer(result->tp->seq));
-    json_object_set_new(object, "interval-usec", json_integer(result->tp->interval_usec));
-    json_object_set_new(object, "offset-usec", json_integer(result->tp->offset_usec));
+    json_object_set_new(object, "stream-id", json_integer(result->last_tp->stream_id));
+    json_object_set_new(object, "sequence-number", json_integer(result->last_tp->seq));
+    json_object_set_new(object, "interval-usec", json_integer(result->last_tp->interval_usec));
+    json_object_set_new(object, "offset-usec", json_integer(result->last_tp->offset_usec));
 
     json_object_set_new(object, "timestamps", timestamps);
     json_object_set_new(timestamps, "names", json_array());
     json_object_set_new(timestamps, "values", json_array());
 
-    add_json_timestamp(timestamps, "interval-start", &result->tp->timestamps[TS_T0]);
-    add_json_timestamp(timestamps, "tx-wakeup", &result->tp->timestamps[TS_WAKEUP]);
-    add_json_timestamp(timestamps, "tx-program", &result->tp->timestamps[TS_PROG_SEND]);
-    add_json_timestamp(timestamps, "tx-last-kernel-netsched", &result->tp->timestamps[TS_LAST_KERNEL_SCHED]);
-    add_json_timestamp(timestamps, "tx-last-kernel-driver", &result->tp->timestamps[TS_LAST_KERNEL_SW_TX]);
+    add_json_timestamp(timestamps, "interval-start", &result->last_tp->timestamps[TS_T0]);
+    add_json_timestamp(timestamps, "tx-wakeup", &result->last_tp->timestamps[TS_WAKEUP]);
+    add_json_timestamp(timestamps, "tx-program", &result->last_tp->timestamps[TS_PROG_SEND]);
+    add_json_timestamp(timestamps, "tx-kernel-netsched", ts = &result->tp->timestamps[TS_LAST_KERNEL_SCHED]);
+    add_json_timestamp(timestamps, "tx-kernel-driver", ts = &result->tp->timestamps[TS_LAST_KERNEL_SW_TX]);
     add_json_timestamp(timestamps, "rx-hardware", &result->rx_hw_ts);
     add_json_timestamp(timestamps, "rx-kernel-driver", &result->rx_sw_ts);
     add_json_timestamp(timestamps, "rx-program", &result->rx_user_ts);
@@ -279,7 +269,7 @@ static char *dump_json_test_packet(struct test_packet_result *result)
     return s;
 }
 
-static char *dump_json_error(struct test_packet_result *result)
+static char *dump_json_error(struct result *result)
 {
     char *s = NULL;
     json_t *j;
@@ -300,36 +290,47 @@ static char *dump_json_error(struct test_packet_result *result)
 static int handle_msg(struct msghdr *msg)
 {
     int rc = 0;
-    struct test_packet_result result;
     char *json_rx_packet_str = NULL;
     char *json_rx_error_str = NULL;
 
     struct ether_header *hdr = msg->msg_iov->iov_base;
     guint16 ethertype = ntohs(hdr->ether_type);
-    clock_gettime(CLOCK_REALTIME, &result.rx_user_ts);
+    struct result *result;
 
     /* build result message string */
     switch (ethertype) {
-    case TEST_PACKET_ETHER_TYPE:
-        handle_test_packet(msg, &result);
+    case TEST_PACKET_ETHER_TYPE: {
+        struct ether_testpacket *tp = (void*)hdr;
+        int stream_id = tp->stream_id;
+        result = &results[stream_id];
 
-        if (result.dropped || result.seq_error) {
-            json_rx_error_str = dump_json_error(&result);
-        }
-        if (json_rx_error_str) {
-			printf("%s\n", json_rx_error_str);
-			fflush(stdout);
-            free(json_rx_error_str);
+        /* ignore packets with large stream ids */
+        if (stream_id > MAX_STREAM_ID) {
+            return 0;
         }
 
-        json_rx_packet_str = dump_json_test_packet(&result);
+        /* get rx timestamp */
+        clock_gettime(CLOCK_REALTIME, &result->rx_user_ts);
+        handle_test_packet(msg, result);
+
+        if (result->dropped || result->seq_error) {
+            json_rx_error_str = dump_json_error(result);
+            if (json_rx_error_str) {
+                printf("%s\n", json_rx_error_str);
+                fflush(stdout);
+                free(json_rx_error_str);
+            }
+        }
+
+        json_rx_packet_str = dump_json_test_packet(result);
         if (json_rx_packet_str) {
-			printf("%s\n", json_rx_packet_str);
-			fflush(stdout);
+            printf("%s\n", json_rx_packet_str);
+            fflush(stdout);
             free(json_rx_packet_str);
         }
 
         break;
+    }
     default:
         printf("tbd ... other packet\n");
         break;

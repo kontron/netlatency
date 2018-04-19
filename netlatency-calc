@@ -99,32 +99,28 @@ def update_histogram_jitter(timestamp, value, offset, histogram):
     update_histogram_timestamp(timestamp, histogram)
 
 
-def calc_latency(pkt):
+def calc_latency(pkt, ts):
     result = {}
-    interval_start = numpy.datetime64(pkt['interval-start-timestamp'])
+    interval_start = numpy.datetime64(ts['interval-start'])
     # t0
-    tx_user_target = numpy.datetime64(pkt['tx-user-target-timestamp'])
+    #tx_user_target = numpy.datetime64(ts['tx-wakeup'])
     # t1
-    tx_user = numpy.datetime64(pkt['tx-user-timestamp'])
+    tx_user = numpy.datetime64(ts['tx-program'])
     # t4
-    rx_hw = numpy.datetime64(pkt['rx-hw-timestamp'])
-    # t5
-    rx_user = numpy.datetime64(pkt['rx-user-timestamp'])
-
-    #diff_user_hw = rx_hw - tx_user
-    #diff_user_user = rx_user - tx_user
+    rx_hw = numpy.datetime64(ts['rx-hardware'])
 
     # rt-application latency: (t1 - t0) % interval
-    diff_rt_app = tx_user - tx_user_target
+
+    diff_rt_app = tx_user - interval_start
     diff_interval_start_hw_rx = rx_hw - interval_start
 
     result['type'] = 'latency-calc'
     result['object'] = {
-        'latency-rt-app': int(diff_rt_app)/1000 % pkt['interval-usec'],
+        'latency-program': int(diff_rt_app)/1000 % pkt['interval-usec'],
         #'latency-scheduled-times': int(diff_interval_start_hw_rx)/1000 % pkt['interval-usec'],
         'latency-scheduled-times': int(diff_interval_start_hw_rx)/1000,
         'sequence-number': pkt['sequence-number'],
-        'tx-user-timestamp': pkt['tx-user-timestamp'],
+        'tx-program': ts['tx-program'],
         'stream-id': pkt['stream-id'],
     }
     return result
@@ -135,15 +131,15 @@ count_pkt = 0
 jitter_min = 0
 jitter_max = 0
 
-def calc_jitter(pkt):
+def calc_jitter(pkt, ts):
     global mean_latency
     global count_pkt
     global jitter_min
     global jitter_max
 
     result = {}
-    interval_start = numpy.datetime64(pkt['interval-start-timestamp'])
-    rx_hw = numpy.datetime64(pkt['rx-hw-timestamp'])
+    interval_start = numpy.datetime64(ts['interval-start'])
+    rx_hw = numpy.datetime64(ts['rx-hardware'])
 
     diff_interval_start_hw_rx = rx_hw - interval_start
 
@@ -175,8 +171,8 @@ def main(args=None):
     args = parser.parse_args(args)
 
     output = None
-    histogram_rt_latency_empty = {
-        'type': 'histogram-rt-latency',
+    histogram_program_latency_empty = {
+        'type': 'histogram-program-latency',
         'object': {
             'stream-id': 0,
             'count': 0,
@@ -221,49 +217,54 @@ def main(args=None):
         }
     }
 
-    hist_rt_latency = copy.deepcopy(histogram_rt_latency_empty)
+    hist_program_latency = copy.deepcopy(histogram_program_latency_empty)
     hist_scheduled_times = copy.deepcopy(histogram_scheduled_times_empty)
     hist_jitter = copy.deepcopy(histogram_jitter_empty)
 
     count = 0
     try:
         for line in args.infile:
+            line = line.strip()
+            if not line:
+                continue
+
             try:
                 j = json.loads(line)
 
                 if j['type'] == 'rx-error':
                     print(line, file=sys.stdout)
                 elif j['type'] == 'rx-packet':
-                    result = calc_latency(j['object'])
-                    #dump_json_str(result)
+                    count += 1
+                    ts = j['object']['timestamps']
+                    ts = dict(zip(ts['names'], ts['values']))
+                    result = calc_latency(j['object'], ts)
 
-                    timestamp = result['object']['tx-user-timestamp']
+                    timestamp = result['object']['tx-program']
 
-                    value = result['object']['latency-rt-app']
+                    value = result['object']['latency-program']
                     update_histogram(timestamp, value,
-                            hist_rt_latency['object'])
+                            hist_program_latency['object'])
 
                     value = result['object']['latency-scheduled-times']
                     update_histogram_modulo(timestamp, value,
                             hist_scheduled_times['object'])
 
-                    jitter = calc_jitter(j['object'])
+                    jitter = calc_jitter(j['object'], ts)
                     update_histogram_jitter(timestamp, jitter, hist_jitter['object']['offset'],
                             hist_jitter['object'])
 
-                    if args.count != 0:
-                        count += 1
-                        if count == args.count:
-                            dump_json_str(hist_rt_latency)
-                            dump_json_str(hist_scheduled_times)
-                            dump_json_str(hist_jitter)
-                            count = 0
-                            hist_rt_latency= copy.deepcopy(
-                                    histogram_rt_latency_empty)
-                            hist_scheduled_times = copy.deepcopy(
-                                    histogram_scheduled_times_empty)
-                            hist_jitter = copy.deepcopy(
-                                    histogram_jitter_empty)
+                if args.count != 0:
+                    if count == args.count:
+                        dump_json_str(hist_program_latency)
+                        dump_json_str(hist_scheduled_times)
+                        dump_json_str(hist_jitter)
+                        count = 0
+                        hist_program_latency= copy.deepcopy(
+                                histogram_program_latency_empty)
+                        hist_scheduled_times = copy.deepcopy(
+                                histogram_scheduled_times_empty)
+                        hist_jitter = copy.deepcopy(
+                                histogram_jitter_empty)
 
                 sys.stdout.flush()
 
@@ -273,7 +274,7 @@ def main(args=None):
     except KeyboardInterrupt as e:
         pass
 
-    dump_json_str(hist_rt_latency)
+    dump_json_str(hist_program_latency)
     dump_json_str(hist_scheduled_times)
     dump_json_str(hist_jitter)
 

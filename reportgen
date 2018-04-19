@@ -140,24 +140,30 @@ def main(args=None):
     c = None
     try:
         for line in args.infile:
+            line = line.strip()
+            if not line:
+                continue
             try:
                 j = json.loads(line)
-                if j['type'] == 'histogram-rt-latency':
+                if j['type'] == 'histogram-program-latency':
                     b = j['object']
                 if j['type'] == 'histogram-scheduled-times':
                     a = j['object']
                 if j['type'] == 'histogram-jitter':
                     c = j['object']
-            except ValueError:
+            except ValueError as e:
+                print(e)
                 pass
     except KeyboardInterrupt:
         import time
         time.sleep(0.5)
         for line in args.infile:
+            line = line.strip()
+            if not line:
+                continue
             try:
-                print(line)
                 j = json.loads(line)
-                if j['type'] == 'histogram-rt-latency':
+                if j['type'] == 'histogram-program-latency':
                     b = j['object']
                 if j['type'] == 'histogram-scheduled-times':
                     a = j['object']

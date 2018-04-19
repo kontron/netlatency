@@ -4,3 +4,4 @@ reader
 netlatency-rx
 netlatency-tx
 tests/test-timer
+tests/test-rx

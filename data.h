@@ -52,7 +52,13 @@ struct ether_testpacket {
 	guint32 seq;
 	guint16 interval_usec;
 	guint16 offset_usec;
-	struct timespec timestamps[];
+	guint32 flags;
+	struct timespec timestamps[TS_MAX_NUM];
 } __attribute__((__packed__));
+
+#define TP_HDR_LEN offsetof(struct ether_testpacket, timestamps)
+#define TP_LEN(x) (TP_HDR_LEN + sizeof(struct timespec) * (x))
+
+#define TP_FLAG_SMALL_MODE (1 << 0)
 
 #endif

@@ -351,7 +351,6 @@ static void *timer_thread(void *params)
     while (!do_shutdown) {
         /* get timestamp of last transmitted packet */
         get_tx_timestamps(parm->fd, &last_sched_tx_ts, &last_sw_tx_ts);
-        size = sizeof(struct ether_testpacket);
 
         /* if interval is 0 send as fast as possible */
         if (o_interval_ms != 0) {
@@ -367,9 +366,11 @@ static void *timer_thread(void *params)
             tp_set_timestamp(tp, TS_LAST_KERNEL_SCHED, &last_sched_tx_ts);
             tp_set_timestamp(tp, TS_LAST_KERNEL_SW_TX, &last_sw_tx_ts);
             tp_set_timestamp(tp, TS_PROG_SEND, NULL);
-            size += sizeof(struct timespec) * 5;
+            tp->flags = 0;
+            size = TP_LEN(5);
         } else {
-            size += sizeof(struct timespec);
+            tp->flags = TP_FLAG_SMALL_MODE;
+            size = TP_LEN(1);
         }
 
         send(parm->fd, (char*)tp, MAX(size, o_padding), 0);

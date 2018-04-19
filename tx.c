@@ -47,6 +47,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <linux/version.h>
 
 #include <glib.h>
 #include <glib/gprintf.h>
@@ -287,7 +288,7 @@ static void get_tx_timestamps(int fd, struct timespec *ts1,
                     && cm->cmsg_type == SO_TIMESTAMPING
                     && cm->cmsg_len >= sizeof(struct timespec) * 3) {
                 _ts = (struct timespec *)CMSG_DATA(cm);
-#ifdef SOF_TIMESTAMPING_TX_SCHED
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
                 *ts1 = *ts2;
 #endif
                 *ts2 = *_ts;
@@ -427,7 +428,7 @@ int main(int argc, char **argv)
 
     /* enable transmit timestamping */
     opt = SOF_TIMESTAMPING_TX_SOFTWARE
-#ifdef SOF_TIMESTAMPING_TX_SCHED
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
           | SOF_TIMESTAMPING_TX_SCHED
 #endif
           | SOF_TIMESTAMPING_SOFTWARE;

@@ -278,7 +278,7 @@ static char *dump_json_test_packet(struct result *result)
     add_json_timestamp(timestamps, "tx-kernel-netsched", ts = &result->tp->timestamps[TS_LAST_KERNEL_SCHED]);
     add_json_timestamp(timestamps, "tx-kernel-driver", ts = &result->tp->timestamps[TS_LAST_KERNEL_SW_TX]);
     add_json_timestamp(timestamps, "rx-hardware", &result->last_rx_tss[TS_KERNEL_HW_RX]);
-    add_json_timestamp(timestamps, "rx-kernel-driver", &result->last_rx_tss[TS_KERNEL_SW_RX]);
+    //add_json_timestamp(timestamps, "rx-kernel-driver", &result->last_rx_tss[TS_KERNEL_SW_RX]);
     add_json_timestamp(timestamps, "rx-program", &result->last_rx_tss[TS_PROG_RECV]);
 
     s = json_dumps(root, JSON_COMPACT);

@@ -35,8 +35,11 @@ import sys
 
 from collections import OrderedDict
 
+from os import environ
+if environ.get('DISPLAY') is None:
+    import matplotlib as mpl
+    mpl.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 def plot(data):
@@ -67,7 +70,7 @@ def plot(data):
     # add x-tick labels
     plt.setp(ax, xticks=[y + 1 for y in range(len(all_data))],
              xticklabels=labels)
-    plt.show()
+    return plt
 
 
 def update_data(data, ts, max_val=100):
@@ -80,11 +83,12 @@ def update_data(data, ts, max_val=100):
 
 def main(args=None):
     parser = argparse.ArgumentParser(
-        description='latency')
-    parser.add_argument('-c', '--count', type=int, dest='count',
-                        help='Count until histogram output', default=0)
+        description='trace')
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
                         help='Input file (default is STDIN)', default=sys.stdin)
+    parser.add_argument('outfile', nargs='?', type=str,
+                        help='Output file (default is None, open X window)',
+                        default=None)
     args = parser.parse_args(args)
 
     data = OrderedDict()
@@ -109,7 +113,14 @@ def main(args=None):
 
     print(data)
 
-    plot(data)
+    plt = plot(data)
+    if args.outfile:
+        plt.savefig(args.outfile, dpi=300)
+    else:
+        try:
+            plt.show()
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == '__main__':

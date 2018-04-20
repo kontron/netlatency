@@ -1,7 +1,6 @@
 *.o
 *.d
-reader
-netlatency-rx
-netlatency-tx
+nl-rx
+nl-tx
 tests/test-timer
 tests/test-rx

@@ -20,9 +20,9 @@ A network latency measurement toolset.
 %{make_install}
 
 %files
-/usr/sbin/netlatency-rx
-/usr/sbin/netlatency-tx
-/usr/bin/latency
-/usr/bin/reportgen
-/usr/bin/histogen
-/usr/bin/netlatency-calc
+/usr/sbin/nl-rx
+/usr/sbin/nl-tx
+/usr/bin/nl-report
+/usr/bin/nl-calc
+/usr/bin/nl-trace
+/usr/bin/nl-xlat-ts

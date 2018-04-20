@@ -71,10 +71,9 @@ all: real-all
 
 include tests/tests.mk
 
-ALL_TARGETS += $(o)netlatency-rx $(o)netlatency-tx
+ALL_TARGETS += $(o)nl-rx $(o)nl-tx
 
 real-all: $(ALL_TARGETS)
-
 
 CLEAN_TARGETS += clean-rx
 CLEAN_TARGETS += clean-tx
@@ -82,47 +81,41 @@ INSTALL_TARGETS += install-rx
 INSTALL_TARGETS += install-tx
 INSTALL_TARGETS += install-scripts
 
-rx_SOURCES := rx.c timer.c
-rx_OBJECTS := $(addprefix $(o),$(rx_SOURCES:.c=.o))
+nl-rx_SOURCES := rx.c timer.c
+nl-rx_OBJECTS := $(addprefix $(o),$(nl-rx_SOURCES:.c=.o))
+nl-tx_SOURCES := tx.c timer.c
+nl-tx_OBJECTS := $(addprefix $(o),$(nl-tx_SOURCES:.c=.o))
 
-HELPER_SCRIPTS := latency histogen reportgen netlatency-calc
+
+HELPER_SCRIPTS := nl-report nl-calc nl-trace nl-xlat-ts
 
 $(o)%.o: %.c
 	$(call compile_tgt,netlatency)
 
 
-$(o)netlatency-rx: $(rx_OBJECTS)
-	$(call link_tgt,netlatency-rx)
+$(o)nl-rx: $(nl-rx_OBJECTS)
+	$(call link_tgt,nl-rx)
 
-clean-rx:
-	rm -f $(rx_OBJECTS) $(o)rx
+clean-nl-rx:
+	rm -f $(nl-rx_OBJECTS) $(o)nl-rx
 
-install-rx: $(o)netlatency-rx
+install-rx: $(o)nl-rx
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(SBINDIR)
-	$(INSTALL) -m 0755 $(o)netlatency-rx $(DESTDIR)$(SBINDIR)/
+	$(INSTALL) -m 0755 $(o)nl-rx $(DESTDIR)$(SBINDIR)/
 
-
-tx_SOURCES := tx.c timer.c
-tx_OBJECTS := $(addprefix $(o),$(tx_SOURCES:.c=.o))
-
-$(o)netlatency-tx: $(tx_OBJECTS)
-	$(call link_tgt,tx)
+$(o)nl-tx: $(nl-tx_OBJECTS)
+	$(call link_tgt,nl-tx)
 
 clean-tx:
 	rm -f $(tx_OBJECTS) $(o)tx
 
-install-tx: $(o)netlatency-tx
+install-tx: $(o)nl-tx
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(SBINDIR)
-	$(INSTALL) -m 0755 $(o)netlatency-tx $(DESTDIR)$(SBINDIR)/
-
+	$(INSTALL) -m 0755 $(o)nl-tx $(DESTDIR)$(SBINDIR)/
 
 install-scripts: $(HELPER_SCRIPTS)
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
-	$(INSTALL) -m 0755 latency $(DESTDIR)$(BINDIR)/
-	$(INSTALL) -m 0755 histogen $(DESTDIR)$(BINDIR)/
-	$(INSTALL) -m 0755 reportgen $(DESTDIR)$(BINDIR)/
-	$(INSTALL) -m 0755 netlatency-calc $(DESTDIR)$(BINDIR)/
-
+	$(INSTALL) -m 0755 $^ $(DESTDIR)$(BINDIR)/
 
 .PHONY: $(CLEAN_TARGETS) clean
 clean: $(CLEAN_TARGETS)

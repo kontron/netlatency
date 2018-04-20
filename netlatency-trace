@@ -102,13 +102,22 @@ def main(args=None):
 
             try:
                 j = json.loads(line)
-                ts = j['object']['timestamps']
-                update_data(data, ts, relmode=args.relmode)
-                sys.stdout.flush()
-
             except ValueError as e:
                 print(e, file=sys.stderr)
                 pass
+
+	    try:
+                if j['type'] == 'rx-packet':
+                    ts = j['object']['timestamps']
+                    update_data(data, ts, relmode=args.relmode)
+                    sys.stdout.flush()
+                else:
+                    print(line, file=sys.stdout)
+                    sys.stdout.flush()
+            except KeyError as e:
+                print(e, file=sys.stderr)
+                pass
+
     except KeyboardInterrupt as e:
         pass
 

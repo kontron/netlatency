@@ -43,25 +43,26 @@ if environ.get('DISPLAY') is None:
 import matplotlib.pyplot as plt
 
 
-def plot(data, stats, relmode=False):
+def plot(data, stats, props):
     all_data = []
     labels = []
 
-    for k,v in data.iteritems():
-        if k == 'rx-program':
-            continue
-        if k == 'rx-kernel-driver':
-            continue
-        if k == 'interval-start':
+    for k,v in data.items():
+        if props['ignorets'] and k in props['ignorets']:
             continue
         all_data.append(v)
         labels.append(k)
 
+    plt.figure(figsize=(10,8))
     plt.suptitle('Packet timestamps', fontsize=14, fontweight='bold')
     plt.boxplot(all_data)
+    if props['ymin']:
+        plt.ylim(ymin=props['ymin'] * 1000)
+    if props['ymax']:
+        plt.ylim(ymax=props['ymax'] * 1000)
     plt.grid(axis='y')
     plt.xticks(range(1,len(labels)+1), labels, rotation=10)
-    if relmode:
+    if props['relmode']:
         plt.ylabel("Duration $\Delta$T ($\mu$s)")
     else:
         plt.ylabel("Absolute time ($\mu$s)")
@@ -92,6 +93,10 @@ def update_data(data, ts, relmode=False):
 def main(args=None):
     parser = argparse.ArgumentParser(
         description='trace')
+    parser.add_argument('--y-min', dest='ymin', type=float)
+    parser.add_argument('--y-max', dest='ymax', type=float)
+    parser.add_argument('--ignore-ts', dest='ignorets', type=str,
+                        action='append')
     parser.add_argument('--rel-mode', dest='relmode', action='store_true',
                         help='Use the diffs between two subsequent timestamps.')
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
@@ -102,6 +107,10 @@ def main(args=None):
     args = parser.parse_args(args)
 
     data = OrderedDict()
+    props = dict(ymin=args.ymin,
+                 ymax=args.ymax,
+                 ignorets=args.ignorets,
+                 relmode=args.relmode)
     stats = dict(total=0, invalid=0)
 
     try:
@@ -138,7 +147,7 @@ def main(args=None):
     except KeyboardInterrupt as e:
         pass
 
-    plt = plot(data, stats, relmode=args.relmode)
+    plt = plot(data, stats, props)
     if args.outfile:
         plt.savefig(args.outfile)
     else:

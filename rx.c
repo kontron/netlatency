@@ -87,8 +87,9 @@ static gint o_ptp_mode = FALSE;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
 static gint o_verbose = 0;
 static gint o_version = 0;
+static gint count = 0;
 
-static gint do_shutdown = 0;
+static gboolean do_shutdown = FALSE;
 
 static void get_hw_timestamps(struct msghdr *msg, struct timespec *ts1, struct timespec *ts2)
 {
@@ -312,7 +313,6 @@ static void dump_json_stdout(struct json_t *j)
 
 static int handle_msg(struct msghdr *msg)
 {
-    int rc = 0;
     json_t *j;
 
     struct ether_header *hdr = msg->msg_iov->iov_base;
@@ -344,6 +344,11 @@ static int handle_msg(struct msghdr *msg)
             j = json_test_packet(result->last_tp, result->tp, result->last_rx_tss);
             dump_json_stdout(j);
             json_decref(j);
+
+            if (o_count && ++count >= o_count) {
+                do_shutdown = TRUE;
+                return 0;
+            }
         }
 
         /* or we've received the last packet */
@@ -353,6 +358,11 @@ static int handle_msg(struct msghdr *msg)
             free(tp);
             dump_json_stdout(j);
             json_decref(j);
+
+            if (o_count && ++count >= o_count) {
+                do_shutdown = TRUE;
+                return 0;
+            }
         }
 
         break;
@@ -362,7 +372,7 @@ static int handle_msg(struct msghdr *msg)
         break;
     }
 
-    return rc;
+    return 0;
 }
 
 int get_own_eth_address(int fd, gchar *ifname, struct ether_addr *src_eth_addr)
@@ -614,16 +624,10 @@ int real_main(int argc, char **argv)
     signal(SIGUSR1, signal_handler);
 
 
-    gint64 count = 0;
     while (!do_shutdown) {
         msg = receive_msg(fd, src_eth_addr);
         if (msg) {
             handle_msg(msg);
-        }
-
-        count++;
-        if (o_count && count >= o_count) {
-            break;
         }
     }
 

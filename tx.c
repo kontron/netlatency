@@ -373,11 +373,12 @@ static void *timer_thread(void *params)
             size = TP_LEN(1);
         }
 
-        send(parm->fd, (char*)tp, MAX(size, o_padding), 0);
         if (o_count && ++count >= o_count) {
             do_shutdown = TRUE;
+            tp->flags = TP_FLAG_END_OF_STREAM;
         }
 
+        send(parm->fd, (char*)tp, MAX(size, o_padding), 0);
         tp->seq++;
     }
 

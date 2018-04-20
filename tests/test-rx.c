@@ -119,17 +119,12 @@ static void test_is_broadcast_addr(void)
 
 static void test_dump_json_test_packet(void)
 {
-    struct result result;
-    struct ether_testpacket _tp, *tp = &_tp;
-    char *str = NULL;
+    struct ether_testpacket _tp = { 0 }, *tp = &_tp;
+    struct timespec tss[3] = { 0 };
+    json_t *j = NULL;
 
-    memset(&result, 0, sizeof(result));
-    memset(tp, 0, sizeof(*tp));
-    result.tp = tp;
-    result.last_tp = tp;
-
-    str = dump_json_test_packet(&result);
-    g_assert(str != NULL);
+    j = json_test_packet(tp, tp, tss);
+    g_assert(j != NULL);
 #if 0
     // test cannot be done here because order of elements depends on machine!
     // it is a dict
@@ -137,7 +132,7 @@ static void test_dump_json_test_packet(void)
     g_assert_cmpstr(str, ==,
     "{\"type\":\"rx-packet\",\"object\":{\"stream-id\":0,\"sequence-number\":0,\"interval-usec\":0,\"offset-usec\":0,\"timestamps\":{\"names\":[\"interval-start\",\"tx-wakeup\",\"tx-program\",\"tx-kernel-netsched\",\"tx-kernel-driver\",\"rx-hardware\",\"rx-kernerl-driver\",\"rx-program\"],\"values\":[\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\",\"1970-01-01T00:00:00.000000000Z\"]}}}");
 #endif
-    g_free(str);
+    json_decref(j);
 }
 
 

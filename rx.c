@@ -248,18 +248,15 @@ int add_json_timestamp(json_t *object, char *name, struct timespec *ts)
     return 0;
 }
 
-static char *dump_json_test_packet(struct result *result)
+static json_t *json_test_packet(struct ether_testpacket *tp1,
+        struct ether_testpacket *tp2, struct timespec *tss)
 {
     struct timespec *ts;
-    char *s;
 
-    g_assert(result);
-    g_assert(result->tp);
+    g_assert(tp1);
+    g_assert(tp2);
+    g_assert(tss);
 
-    /* we have to wait for at least two packets */
-    if (!result->last_tp) {
-        return NULL;
-    }
 
     json_t *root = json_object();
     json_t *object = json_object();
@@ -268,32 +265,29 @@ static char *dump_json_test_packet(struct result *result)
     json_object_set_new(root, "type", json_string("rx-packet"));
     json_object_set_new(root, "object", object);
 
-    json_object_set_new(object, "stream-id", json_integer(result->last_tp->stream_id));
-    json_object_set_new(object, "sequence-number", json_integer(result->last_tp->seq));
-    json_object_set_new(object, "interval-usec", json_integer(result->last_tp->interval_usec));
-    json_object_set_new(object, "offset-usec", json_integer(result->last_tp->offset_usec));
+    json_object_set_new(object, "stream-id", json_integer(tp1->stream_id));
+    json_object_set_new(object, "sequence-number", json_integer(tp1->seq));
+    json_object_set_new(object, "interval-usec", json_integer(tp1->interval_usec));
+    json_object_set_new(object, "offset-usec", json_integer(tp1->offset_usec));
 
     json_object_set_new(object, "timestamps", timestamps);
     json_object_set_new(timestamps, "names", json_array());
     json_object_set_new(timestamps, "values", json_array());
 
-    add_json_timestamp(timestamps, "interval-start", &result->last_tp->timestamps[TS_T0]);
-    add_json_timestamp(timestamps, "tx-wakeup", &result->last_tp->timestamps[TS_WAKEUP]);
-    add_json_timestamp(timestamps, "tx-program", &result->last_tp->timestamps[TS_PROG_SEND]);
-    add_json_timestamp(timestamps, "tx-kernel-netsched", ts = &result->tp->timestamps[TS_LAST_KERNEL_SCHED]);
-    add_json_timestamp(timestamps, "tx-kernel-driver", ts = &result->tp->timestamps[TS_LAST_KERNEL_SW_TX]);
-    add_json_timestamp(timestamps, "rx-hardware", &result->last_rx_tss[TS_KERNEL_HW_RX]);
-    //add_json_timestamp(timestamps, "rx-kernel-driver", &result->last_rx_tss[TS_KERNEL_SW_RX]);
-    add_json_timestamp(timestamps, "rx-program", &result->last_rx_tss[TS_PROG_RECV]);
+    add_json_timestamp(timestamps, "interval-start", &tp1->timestamps[TS_T0]);
+    add_json_timestamp(timestamps, "tx-wakeup", &tp1->timestamps[TS_WAKEUP]);
+    add_json_timestamp(timestamps, "tx-program", &tp1->timestamps[TS_PROG_SEND]);
+    add_json_timestamp(timestamps, "tx-kernel-netsched", ts = &tp2->timestamps[TS_LAST_KERNEL_SCHED]);
+    add_json_timestamp(timestamps, "tx-kernel-driver", ts = &tp2->timestamps[TS_LAST_KERNEL_SW_TX]);
+    add_json_timestamp(timestamps, "rx-hardware", &tss[TS_KERNEL_HW_RX]);
+    //add_json_timestamp(timestamps, "rx-kernel-driver", &tss[TS_KERNEL_SW_RX]);
+    add_json_timestamp(timestamps, "rx-program", &tss[TS_PROG_RECV]);
 
-    s = json_dumps(root, JSON_COMPACT);
-
-    return s;
+    return root;
 }
 
-static char *dump_json_error(struct result *result)
+static json_t *json_error(struct result *result)
 {
-    char *s = NULL;
     json_t *j;
 
     j = json_pack("{sss{sisb}}",
@@ -303,17 +297,23 @@ static char *dump_json_error(struct result *result)
                   "sequence-error", result->seq_error
     );
 
-    s = json_dumps(j, JSON_COMPACT);
-    json_decref(j);
+    return j;
+}
 
-    return s;
+static void dump_json_stdout(struct json_t *j)
+{
+    char *s = json_dumps(j, JSON_COMPACT);
+    if (s) {
+        printf("%s\n", s);
+        fflush(stdout);
+        free(s);
+    }
 }
 
 static int handle_msg(struct msghdr *msg)
 {
     int rc = 0;
-    char *json_rx_packet_str = NULL;
-    char *json_rx_error_str = NULL;
+    json_t *j;
 
     struct ether_header *hdr = msg->msg_iov->iov_base;
     guint16 ethertype = ntohs(hdr->ether_type);
@@ -334,19 +334,25 @@ static int handle_msg(struct msghdr *msg)
         handle_test_packet(msg, result);
 
         if (result->dropped || result->seq_error) {
-            json_rx_error_str = dump_json_error(result);
-            if (json_rx_error_str) {
-                printf("%s\n", json_rx_error_str);
-                fflush(stdout);
-                free(json_rx_error_str);
-            }
+            j = json_error(result);
+            dump_json_stdout(j);
+            json_decref(j);
         }
 
-        json_rx_packet_str = dump_json_test_packet(result);
-        if (json_rx_packet_str) {
-            printf("%s\n", json_rx_packet_str);
-            fflush(stdout);
-            free(json_rx_packet_str);
+        /* we have to wait for at least two packets */
+        if (result->last_tp) {
+            j = json_test_packet(result->last_tp, result->tp, result->last_rx_tss);
+            dump_json_stdout(j);
+            json_decref(j);
+        }
+
+        /* or we've received the last packet */
+        if (result->tp->flags & TP_FLAG_END_OF_STREAM) {
+            struct ether_testpacket *tp = g_new0(struct ether_testpacket, 1);
+            j = json_test_packet(result->tp, tp, result->rx_tss);
+            free(tp);
+            dump_json_stdout(j);
+            json_decref(j);
         }
 
         break;

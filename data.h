@@ -59,6 +59,7 @@ struct ether_testpacket {
 #define TP_HDR_LEN offsetof(struct ether_testpacket, timestamps)
 #define TP_LEN(x) (TP_HDR_LEN + sizeof(struct timespec) * (x))
 
-#define TP_FLAG_SMALL_MODE (1 << 0)
+#define TP_FLAG_END_OF_STREAM  (1 << 0)
+#define TP_FLAG_SMALL_MODE     (1 << 1)
 
 #endif

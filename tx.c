@@ -75,7 +75,7 @@ static gint o_version = 0;
 static gint o_small_pkt_mode = 0;
 static int o_queue_prio = -1;
 
-static gint do_shutdown = 0;
+static gboolean do_shutdown = FALSE;
 
 static char tp_buf[1518];
 struct ether_testpacket *tp = (void*)tp_buf;
@@ -228,7 +228,7 @@ void signal_handler(int signal)
     case SIGINT:
     case SIGTERM:
         munlockall();
-        do_shutdown++;
+        do_shutdown = TRUE;
     break;
     case SIGUSR1:
     break;
@@ -374,14 +374,11 @@ static void *timer_thread(void *params)
         }
 
         send(parm->fd, (char*)tp, MAX(size, o_padding), 0);
+        if (o_count && ++count >= o_count) {
+            do_shutdown = TRUE;
+        }
 
         tp->seq++;
-        count++;
-
-        if (o_count && count >= o_count) {
-            do_shutdown++;
-            break;
-        }
     }
 
     return NULL;
@@ -488,13 +485,7 @@ int main(int argc, char **argv)
 
     rv = pthread_create(&thread, &attr, timer_thread, &thread_param);
 
-    while (!do_shutdown) {
-        usleep(10000);
-
-        if (do_shutdown) {
-            break;
-        }
-    }
+    while (!do_shutdown) usleep(10000);
 
     pthread_join(thread, NULL);
 

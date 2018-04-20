@@ -119,10 +119,12 @@ static void test_is_broadcast_addr(void)
 
 static void test_dump_json_test_packet(void)
 {
-    struct ether_testpacket _tp = { 0 }, *tp = &_tp;
-    struct timespec tss[3] = { 0 };
+    struct ether_testpacket _tp, *tp = &_tp;
+    struct timespec tss[3];
     json_t *j = NULL;
 
+    memset(tp, 0, sizeof(*tp));
+    memset(tss, 0, sizeof(tss));
     j = json_test_packet(tp, tp, tss);
     g_assert(j != NULL);
 #if 0

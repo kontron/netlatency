@@ -43,7 +43,7 @@ if environ.get('DISPLAY') is None:
 import matplotlib.pyplot as plt
 
 
-def plot(data):
+def plot(data, stats, relmode=False):
     all_data = []
     labels = []
 
@@ -57,28 +57,37 @@ def plot(data):
         all_data.append(v)
         labels.append(k)
 
-    plt.suptitle('Paket latency and jitter', fontsize=14, fontweight='bold')
+    plt.suptitle('Packet timestamps', fontsize=14, fontweight='bold')
     plt.boxplot(all_data)
     plt.grid(axis='y')
     plt.xticks(range(1,len(labels)+1), labels, rotation=10)
-    plt.ylabel("Absolute time ($\mu$s)")
+    if relmode:
+        plt.ylabel("Duration $\Delta$T ($\mu$s)")
+    else:
+        plt.ylabel("Absolute time ($\mu$s)")
     locs, _ = plt.yticks()
     plt.yticks(locs, [l / 1000.0 for l in locs])
+    text = "values: %(total)d in total, %(invalid)d invalid" % stats
+    plt.text(0.005, 0.995, text, transform=plt.gca().transAxes, verticalalignment='top')
     return plt
 
 
 def update_data(data, ts, relmode=False):
     values = map(lambda v: int(numpy.datetime64(v)), ts['values'])
+
+    # check if a timestamp is 0
+    if min(values) == 0:
+        return True
+
     values = map(lambda v: v - values[0], values)
 
     if (relmode):
         values[1:] = [b-a for a,b in zip(values, values[1:])]
 
     for (i,n) in enumerate(ts['names']):
-        if n not in data:
-            data[n] = list((values[i],))
-        else:
-            data[n].append(values[i])
+        data[n].append(values[i])
+
+    return False
 
 def main(args=None):
     parser = argparse.ArgumentParser(
@@ -93,6 +102,7 @@ def main(args=None):
     args = parser.parse_args(args)
 
     data = OrderedDict()
+    stats = dict(total=0, invalid=0)
 
     try:
         for line in args.infile:
@@ -106,10 +116,17 @@ def main(args=None):
                 print(e, file=sys.stderr)
                 pass
 
-	    try:
+            try:
                 if j['type'] == 'rx-packet':
                     ts = j['object']['timestamps']
-                    update_data(data, ts, relmode=args.relmode)
+                    if not data:
+                        data = OrderedDict()
+                        for n in ts['names']:
+                            data[n] = list()
+                    error = update_data(data, ts, relmode=args.relmode)
+                    if error:
+                        stats['invalid'] += 1
+                    stats['total'] += 1
                     sys.stdout.flush()
                 else:
                     print(line, file=sys.stdout)
@@ -121,7 +138,7 @@ def main(args=None):
     except KeyboardInterrupt as e:
         pass
 
-    plt = plot(data)
+    plt = plot(data, stats, relmode=args.relmode)
     if args.outfile:
         plt.savefig(args.outfile)
     else:

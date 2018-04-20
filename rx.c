@@ -189,6 +189,11 @@ static int handle_test_packet(struct msghdr *msg,
     struct ether_testpacket *tp = (void*)msg->msg_iov->iov_base;
     int rc;
 
+    /* ignore future packet versions */
+    if (tp->version != 1) {
+        return 0;
+    }
+
     /* remember test packet */
     g_free(result->last_tp);
     g_free(result->last_rx_tss);

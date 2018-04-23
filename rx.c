@@ -81,7 +81,7 @@ struct result {
 static struct result results[MAX_STREAM_ID];
 
 static gchar *help_description = NULL;
-static gint o_capture_ethertype = TEST_PACKET_ETHER_TYPE;
+static gint o_capture_ethertype = TP_ETHER_TYPE;
 static gint o_count = 0;
 static gint o_ptp_mode = FALSE;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
@@ -321,7 +321,7 @@ static int handle_msg(struct msghdr *msg)
 
     /* build result message string */
     switch (ethertype) {
-    case TEST_PACKET_ETHER_TYPE: {
+    case TP_ETHER_TYPE: {
         struct ether_testpacket *tp = (void*)hdr;
         int stream_id = tp->stream_id;
         result = &results[stream_id];

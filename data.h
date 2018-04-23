@@ -30,7 +30,7 @@
 #include <net/ethernet.h>
 #include <netinet/ether.h>
 
-#define TEST_PACKET_ETHER_TYPE 0x0808
+#define TP_ETHER_TYPE 0x0808
 
 enum {
 	TS_T0 = 0,

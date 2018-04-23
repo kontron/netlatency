@@ -470,7 +470,7 @@ int main(int argc, char **argv)
     memcpy(tp->hdr.ether_shost, &ifopts.ifr_hwaddr.sa_data, ETH_ALEN);
 
     /* ethertype */
-    tp->hdr.ether_type = ntohs(TEST_PACKET_ETHER_TYPE);
+    tp->hdr.ether_type = htons(TP_ETHER_TYPE);
 
     sigemptyset(&sigset);
     signal(SIGINT, signal_handler);

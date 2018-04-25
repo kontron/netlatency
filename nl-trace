@@ -54,7 +54,7 @@ def plot(data, stats, props):
         labels.append(k)
 
     plt.figure(figsize=(10,8))
-    plt.suptitle('Packet timestamps', fontsize=14, fontweight='bold')
+    plt.suptitle(props['plottitle'], fontsize=14, fontweight='bold')
     plt.boxplot(all_data)
     if props['ymin']:
         plt.ylim(ymin=props['ymin'] * 1000)
@@ -93,16 +93,22 @@ def update_data(data, ts, relmode=False):
 def main(args=None):
     parser = argparse.ArgumentParser(
         description='trace')
-    parser.add_argument('--y-min', dest='ymin', type=float)
-    parser.add_argument('--y-max', dest='ymax', type=float)
+    parser.add_argument('--y-min', dest='ymin', type=float,
+                        help='Set minimum displayed values on y-axes.')
+    parser.add_argument('--y-max', dest='ymax', type=float,
+                        help='Set maximum displayed values on y-axes.')
+    parser.add_argument('--title', dest='plottitle', type=str,
+                        default='Packet timestamps',
+                        help='Set plot title.')
     parser.add_argument('--ignore-ts', dest='ignorets', type=str,
-                        action='append')
+                        action='append',
+                        help='Do not display specified timestamps.')
     parser.add_argument('--rel-mode', dest='relmode', action='store_true',
                         help='Use the diffs between two subsequent timestamps.')
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
-                        help='Input file (default is STDIN)', default=sys.stdin)
+                        help='Input file (default is STDIN).', default=sys.stdin)
     parser.add_argument('outfile', nargs='?', type=str,
-                        help='Output file (default is None, open X window)',
+                        help='Output file (default is None, open X window).',
                         default=None)
     args = parser.parse_args(args)
 
@@ -110,7 +116,8 @@ def main(args=None):
     props = dict(ymin=args.ymin,
                  ymax=args.ymax,
                  ignorets=args.ignorets,
-                 relmode=args.relmode)
+                 relmode=args.relmode,
+                 plottitle=args.plottitle)
     stats = dict(total=0, invalid=0)
 
     try:

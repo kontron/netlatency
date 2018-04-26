@@ -19,6 +19,35 @@
 /*
  * TESTS
  */
+static void test_check_sequence_num(void)
+{
+    struct result r;
+
+    r.tp = g_new0(struct ether_testpacket, 1);
+    r.last_tp = g_new0(struct ether_testpacket, 1);
+
+    r.last_tp->seq = 1;
+    r.tp->seq = 2;
+    check_sequence_num(&r);
+    g_assert_false(r.seq_error);
+    g_assert_cmpint(r.dropped, ==, 0);
+
+    r.last_tp->seq = 1;
+    r.tp->seq = 3;
+    check_sequence_num(&r);
+    g_assert_false(r.seq_error);
+    g_assert_cmpint(r.dropped, ==, 1);
+
+    r.last_tp->seq = 3;
+    r.tp->seq = 2;
+    check_sequence_num(&r);
+    g_assert_true(r.seq_error);
+    g_assert_cmpint(r.dropped, ==, 0);
+
+    g_free(r.tp);
+    g_free(r.last_tp);
+}
+
 #if 0
 static void test_check_sequence_num(void)
 {
@@ -142,9 +171,9 @@ int main(int argc, char** argv)
 {
     g_test_init(&argc, &argv, NULL);
 
-#if 0
     g_test_add_func("/rx/check_sequence_num/valid",
          test_check_sequence_num);
+#if 0
     g_test_add_func("/rx/check_sequence_num/stream_id",
            test_check_sequence_num_with_stream_id);
     g_test_add_func("/rx/check_sequence_num/stream_id_max",

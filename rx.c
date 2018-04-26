@@ -84,6 +84,7 @@ static gchar *help_description = NULL;
 static gint o_capture_ethertype = TP_ETHER_TYPE;
 static gint o_count = 0;
 static gint o_ptp_mode = FALSE;
+static gint o_no_hw_ts = FALSE;
 static gint o_rx_filter = HWTSTAMP_FILTER_ALL;
 static gint o_verbose = 0;
 static gint o_version = 0;
@@ -415,33 +416,35 @@ int open_capture_interface(gchar *ifname)
         return -1;
     }
 
-    /* configure timestamping */
-    struct hwtstamp_config config;
+    if (!o_no_hw_ts) {
+        /* configure timestamping */
+        struct hwtstamp_config config;
 
-    config.flags = 0;
-    config.tx_type = HWTSTAMP_TX_ON;
-    config.rx_filter = o_rx_filter;
-    if (config.tx_type < 0 || config.rx_filter < 0) {
-        return -1;
-    }
+        config.flags = 0;
+        config.tx_type = HWTSTAMP_TX_ON;
+        config.rx_filter = o_rx_filter;
+        if (config.tx_type < 0 || config.rx_filter < 0) {
+            return -1;
+        }
 
-    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
-    ifr.ifr_data = (caddr_t)&config;
-    if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
-        perror("ioctl() ... configure timestamping\n");
-        return -1;
-    }
+        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
+        ifr.ifr_data = (caddr_t)&config;
+        if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
+            perror("ioctl() ... configure timestamping\n");
+            return -1;
+        }
 
-    /* Enable timestamping */
-    opt = 0;
-    opt = SOF_TIMESTAMPING_RX_HARDWARE
-          | SOF_TIMESTAMPING_RAW_HARDWARE
-          | SOF_TIMESTAMPING_SYS_HARDWARE
-          | SOF_TIMESTAMPING_SOFTWARE;
-    rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
-    if (rc == -1) {
-        perror("setsockopt() ... enable timestamp");
-        return -1;
+        /* Enable timestamping */
+        opt = 0;
+        opt = SOF_TIMESTAMPING_RX_HARDWARE
+              | SOF_TIMESTAMPING_RAW_HARDWARE
+              | SOF_TIMESTAMPING_SYS_HARDWARE
+              | SOF_TIMESTAMPING_SOFTWARE;
+        rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
+        if (rc == -1) {
+            perror("setsockopt() ... enable timestamp");
+            return -1;
+        }
     }
 
     /* Bind to device */
@@ -525,6 +528,8 @@ static GOptionEntry entries[] = {
             parse_rx_filter_cb, "Set HW rx filter", "FILTER" },
     { "ptp", 'p', 0, G_OPTION_ARG_NONE,
             &o_ptp_mode, "Set HW rx filter to PTP packets", NULL },
+    { "no-hw-ts", 'n', 0, G_OPTION_ARG_NONE,
+            &o_no_hw_ts, "Do not read HW timestamps", NULL },
     { "version",   'V', 0, G_OPTION_ARG_NONE,
             &o_version, "Show version information and exit", NULL },
     { NULL, 0, 0, 0, NULL, NULL, NULL }

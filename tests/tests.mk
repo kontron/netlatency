@@ -27,9 +27,17 @@ test-%: $(o)tests/test-%
 test-report-%: $(o)tests/test-%
 	$(call test_report_cmd,$(o)tests/test-report-$*.xml)
 
+memleak-%: $(o)tests/test-%
+	$(call memleak_cmd)
+
+memleak-report-%: $(o)tests/test-%
+	$(call memleak_report_cmd,$(o)tests/memleak-$*.xml)
+
 
 test: $(addprefix test-,$(TEST_LIST))
 test-report: $(addprefix test-report-,$(TEST_LIST))
+memleak: $(addprefix memleak-,$(TEST_LIST))
+memleak-report: $(addprefix memleak-report-,$(TEST_LIST))
 
 
 clean-tests:

@@ -246,6 +246,7 @@ int add_json_timestamp(json_t *object, char *name, struct timespec *ts)
 
     s = timespec_to_iso_string(ts);
     json_array_append_new(v, json_string(s));
+    g_free(s);
 
     return 0;
 }

@@ -66,7 +66,7 @@ def plot(filename, data, stats, props):
     text = "values: %(total)d in total, %(invalid)d invalid" % stats
     plt.text(0.005, 0.995, text, transform=plt.gca().transAxes, verticalalignment='top')
     plt.savefig(filename)
-
+    plt.close()
 
 def update_data(data, ts, relmode=False):
     values = map(lambda v: int(numpy.datetime64(v)), ts['values'])
@@ -100,6 +100,8 @@ def main(args=None):
                         help='Do not display specified timestamps.')
     parser.add_argument('--rel-mode', dest='relmode', action='store_true',
                         help='Use the diffs between two subsequent timestamps.')
+    parser.add_argument('-c' '--count', dest='count', type=int,
+                        help='Dump report after each COUNT packets.')
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
                         help='Input file (default is STDIN).', default=sys.stdin)
     parser.add_argument('outfile', type=str, help='Output file.')
@@ -111,7 +113,7 @@ def main(args=None):
                  ignorets=args.ignorets,
                  relmode=args.relmode,
                  plottitle=args.plottitle)
-    stats = dict(total=0, invalid=0)
+    stats = None
 
     try:
         for line in args.infile:
@@ -132,11 +134,16 @@ def main(args=None):
                         data = OrderedDict()
                         for n in ts['names']:
                             data[n] = list()
+                    if not stats:
+                        stats = dict(total=0, invalid=0)
                     error = update_data(data, ts, relmode=args.relmode)
                     if error:
                         stats['invalid'] += 1
                     stats['total'] += 1
-                    sys.stdout.flush()
+                    if stats['total'] == args.count:
+                        plot(args.outfile, data, stats, props)
+                        stats = None
+                        data = None
                 else:
                     print(line, file=sys.stdout)
                     sys.stdout.flush()

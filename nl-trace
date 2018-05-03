@@ -35,15 +35,10 @@ import numpy
 import sys
 
 from collections import OrderedDict
-
-from os import environ
-if environ.get('DISPLAY') is None:
-    import matplotlib as mpl
-    mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 
-def plot(data, stats, props):
+def plot(filename, data, stats, props):
     all_data = []
     labels = []
 
@@ -70,7 +65,7 @@ def plot(data, stats, props):
     plt.yticks(locs, [l / 1000.0 for l in locs])
     text = "values: %(total)d in total, %(invalid)d invalid" % stats
     plt.text(0.005, 0.995, text, transform=plt.gca().transAxes, verticalalignment='top')
-    return plt
+    plt.savefig(filename)
 
 
 def update_data(data, ts, relmode=False):
@@ -107,9 +102,7 @@ def main(args=None):
                         help='Use the diffs between two subsequent timestamps.')
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
                         help='Input file (default is STDIN).', default=sys.stdin)
-    parser.add_argument('outfile', nargs='?', type=str,
-                        help='Output file (default is None, open X window).',
-                        default=None)
+    parser.add_argument('outfile', type=str, help='Output file.')
     args = parser.parse_args(args)
 
     data = OrderedDict()
@@ -154,14 +147,7 @@ def main(args=None):
     except KeyboardInterrupt as e:
         pass
 
-    plt = plot(data, stats, props)
-    if args.outfile:
-        plt.savefig(args.outfile)
-    else:
-        try:
-            plt.show()
-        except KeyboardInterrupt:
-            pass
+    plot(args.outfile, data, stats, props)
 
 
 if __name__ == '__main__':

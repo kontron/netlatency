@@ -101,7 +101,7 @@ def main(args=None):
                         help='Do not display specified timestamps.')
     parser.add_argument('--rel-mode', dest='relmode', action='store_true',
                         help='Use the diffs between two subsequent timestamps.')
-    parser.add_argument('-c' '--count', dest='count', type=int,
+    parser.add_argument('-c', '--count', dest='count', type=int,
                         help='Dump report after each COUNT packets.')
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
                         help='Input file (default is STDIN).', default=sys.stdin)

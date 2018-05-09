@@ -26,3 +26,4 @@ A network latency measurement toolset.
 /usr/bin/nl-calc
 /usr/bin/nl-trace
 /usr/bin/nl-xlat-ts
+/usr/share/man/nl-tx.1

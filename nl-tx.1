@@ -2,13 +2,65 @@
 .SH NAME
 nl-tx \- send frames for latency measurements
 .SH SYNOPSIS
-\fBnl-tx\fR [OPTION] ... <interface>
+\fBnl-tx\fR [OPTION] (...) <interface>
 .SH DESCRIPTION
 .B nl-tx
 Generate test packets that contains additional information for
 latency measurements.
+This tool sends ethernet test packets.
 .SH OPTIONS
-.SH EXIT STATUS
-.SH EXAMPLE
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+.br
+Show a short help-text.
+.TP
+\fB\-d\fR <MAC>, \fB\-\-destination\fR [=] <MAC>
+.br
+Destination MAC address
+.TP
+\fB\-i\fR <interval-ms>, \fB\-\-interval\fR [=] <interval-ms>
+.br
+Interval in milli seconds (default is 1000)
+.TP
+\fB\-I\fR <stream-id>, \fB\-\-stream-id\fR [=] <stream-id>
+.br
+Set stream id (default is 0)
+.TP
+\fB\-c\fR <number-of-packets>, \fB\-\-count\fR [=] <number-of-packets>
+.br
+Transmit packet count
+.TP
+\fB\-C\fR <cpu...>, \fB\-\-cpu\fR [=] <cpu...>
+.br
+Run timer thread on specified CPU(s) (default is all)
+.TP
+\fB\-P\fR <size>, \fB\-\-padding\fR [=] <size>
+.br
+Pad packet to given size
+.TP
+\fB\-p\fR <rt-prio>, \fB\-\-prio\fR [=] <rt-prio>
+.br
+Set rt-scheduler priority (default is 99)
+.TP
+\fB\-O\fR <offset>, \fB\-\-offset\fR [=] <offset>
+.br
+Set timer interval offset value in usec
+.TP
+\fB\-Q\fR <prio>, \fB\-\-queue-prio\fR [=] <prio>
+.br
+Set skb priority
+.TP
+\fB\-S\fR, \fB\-\-small-pkt-mode\fR
+.br
+Send small packets (<64 bytes), only include important timestamps
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+.br
+Be verbose
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+.br
+Show version information and exit
 .SH SEE ALSO
+nl-rx(1)
 

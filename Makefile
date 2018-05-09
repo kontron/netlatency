@@ -18,7 +18,7 @@ BINDIR ?= $(PREFIX)/bin
 SBINDIR ?= $(PREFIX)/sbin
 INCLUDEDIR ?= $(PREFIX)/include
 LIBDIR ?= $(PREFIX)/lib
-MAN1DIR ?= $(PREFIX)/share/man
+MAN1DIR ?= $(PREFIX)/share/man/man1
 
 ALL_TARGETS :=
 CLEAN_TARGETS :=

@@ -18,7 +18,7 @@ BINDIR ?= $(PREFIX)/bin
 SBINDIR ?= $(PREFIX)/sbin
 INCLUDEDIR ?= $(PREFIX)/include
 LIBDIR ?= $(PREFIX)/lib
-MANDIR ?= $(PREFIX)/share/man
+MAN1DIR ?= $(PREFIX)/share/man/man1
 
 ALL_TARGETS :=
 CLEAN_TARGETS :=
@@ -90,7 +90,8 @@ nl-tx_OBJECTS := $(addprefix $(o),$(nl-tx_SOURCES:.c=.o))
 
 
 HELPER_SCRIPTS := nl-report nl-calc nl-trace nl-xlat-ts
-MAN_PAGES := nl-tx.1
+MAN1_PAGES := nl-calc.1 nl-report.1 nl-rx.1 nl-trace.1 nl-tx.1 \
+nl-xlat-ts.1
 
 $(o)%.o: %.c
 	$(call compile_tgt,netlatency)
@@ -120,9 +121,9 @@ install-scripts: $(HELPER_SCRIPTS)
 	$(INSTALL) -d -m 0755 $(DESTDIR)$(BINDIR)
 	$(INSTALL) -m 0755 $^ $(DESTDIR)$(BINDIR)/
 
-install-manpages: $(MAN_PAGES)
-	$(INSTALL) -d -m 0755 $(DESTDIR)$(MANDIR)
-	$(INSTALL) -m 0755 $^ $(DESTDIR)$(MANDIR)/
+install-manpages: $(MAN1_PAGES)
+	$(INSTALL) -d -m 0755 $(DESTDIR)$(MAN1DIR)
+	$(INSTALL) -m 0755 $^ $(DESTDIR)$(MAN1DIR)/
 
 .PHONY: $(CLEAN_TARGETS) clean
 clean: $(CLEAN_TARGETS)

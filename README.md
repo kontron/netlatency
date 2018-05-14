@@ -155,28 +155,6 @@ application must run on the same CPU architecture.
     }
 
 
-
-## Helper: latency
-
-    usage: latency [-h] [infile]
-
-### Input
-
-output from nl-rx
-
-### Output
-
-    {
-      "type": "latency",
-      "object": {
-        "latency-user-hw": 10    // latency from tx user space to rx hw in
-                                 // nanoseconds
-        "latency-user-user": 100 // latency from tx user space to rx user space
-                                 // in nanoseconds
-      }
-    }
-
-
 ## Helper: nl-calc
 
 The nl-calc tool stores the testpacket results of nl-rx and builds information

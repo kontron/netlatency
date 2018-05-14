@@ -24,7 +24,7 @@ The following timestamp values can be accessed on the nl-rx.
 
 For linux kernel timestamp please refer to the kernel documentation:
 
-https://www.kernel.org/doc/Documentation/networking/timestamping.txt
+[https://www.kernel.org/doc/Documentation/networking/timestamping.txt](https://www.kernel.org/doc/Documentation/networking/timestamping.txt)
 
 ## Shortcomings
 
@@ -176,8 +176,7 @@ latency till the point of record can be seen.
 
 For closer information about meaning of box-plot take a look at:
 
-https://en.wikipedia.org/wiki/Box_plot
-
+[https://en.wikipedia.org/wiki/Box_plot](https://en.wikipedia.org/wiki/Box_plot)
 
 ## Usage Examples
 

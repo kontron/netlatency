@@ -1,25 +1,25 @@
 # Netlatency
 
 The netlatency toolset is used to measure the latency and jitter parameters
-of an ethernet connection. The netlatency-tx generates UDP packets with
+of an ethernet connection. The nl-tx generates UDP packets with
 embedded system timestamp (tx-user) and sequence number. The netlantency-rx
 captures these packets and dumps the collected receiving information such
 as timestamp from the linux network stack and the receiving system time
-(rx-user). netlatency-ry can detect receiving errors (dropped packets or
+(rx-user). nl-rx can detect receiving errors (dropped packets or
 sequence error).
 
 
-The following timestamp values can be accessed on the netlatency-rx.
+The following timestamp values can be accessed on the nl-rx.
 
-| Timestamp          | Description                                             |
-| ------------------ | ------------------------------------------------------- |
-| interval-start     | The interval start timestamp                            |
-| tx-wakeup          | The wakeup timestamp of netlatency-tx                   |
-| tx-program         | The timestamp when calling the send function            |
-| tx-kernel-netsched | Linux kernel timestamp SOF_TIMESTAMPING_TX_SCHED        |
-| tx-kernel-driver   | Linux kernel timestamp SOF_TIMESTAMPING_TX_SOFTWARE     |
-| rx-hardware        | Linux kernel timestamp SOF_TIMESTAMPING_RX_HARDWARE     |
-| rx-program         | Timestamp when handling the testpacket in netlatency-rx |
+| Timestamp          | Description                                           |
+| ------------------ | ----------------------------------------------------- |
+| interval-start     | The interval start timestamp                          |
+| tx-wakeup          | The wakeup timestamp of nl-tx                         |
+| tx-program         | The timestamp when calling the send function          |
+| tx-kernel-netsched | Linux kernel timestamp SOF_TIMESTAMPING_TX_SCHED      |
+| tx-kernel-driver   | Linux kernel timestamp SOF_TIMESTAMPING_TX_SOFTWARE   |
+| rx-hardware        | Linux kernel timestamp SOF_TIMESTAMPING_RX_HARDWARE   |
+| rx-program         | Timestamp when handling the testpacket in nl-rx       |
 
 
 For linux kernel timestamp please refer to the kernel documentation:
@@ -31,12 +31,12 @@ https://www.kernel.org/doc/Documentation/networking/timestamping.txt
 There is no byte order translation. Therefore, the sender and receiver
 application must run on the same CPU architecture.
 
-## netlatency-tx
+## nl-tx
 
 ### Synopsis
 
     Usage:
-      netlatency-tx [OPTION...] DEVICE - transmit timestamped test packets
+      nl-tx [OPTION...] DEVICE - transmit timestamped test packets
 
     Help Options:
       -?, --help            Show help options
@@ -65,12 +65,12 @@ application must run on the same CPU architecture.
       }
     }
 
-## netlatency-rx
+## nl-rx
 
 ### Synopsis
 
     Usage:
-      netlatency-rx [OPTION...] DEVICE - receive timestamped test packets
+      -rx [OPTION...] DEVICE - receive timestamped test packets
 
     Help Options:
       -?, --help          Show help options
@@ -162,7 +162,7 @@ application must run on the same CPU architecture.
 
 ### Input
 
-output from netlatency-rx
+output from nl-rx
 
 ### Output
 
@@ -208,7 +208,7 @@ https://en.wikipedia.org/wiki/Box_plot
 
 On receive servers site:
 
-    $ ./netlatency-rx enp2s0  -v |  socat - udp-sendto:127.0.0.1:5000
+    $ nl-rx enp2s0  -v |  socat - udp-sendto:127.0.0.1:5000
 
 
 On client site:
@@ -216,10 +216,6 @@ On client site:
     $ socat - udp4-listen:5000,reuseaddr,fork
 
 
-### Receive testpackets, calc latency, generate histogram and plot on screen
-
-    $ netlatency-rx enp2s0 -c 10000 -v | latency -  | histogen  | reportgen
-
 ### Receive testpackets, calc latency, generate histogram and plot in file
 
-    $ netlatency-rx enp2s0 -c 10000 -v | latency -  | histogen  | reportgen - /tmp/plot.png
+    $ nl-rx enp2s0 -c 10000 -v | nl-calc -  | nl-report - /tmp/plot.png

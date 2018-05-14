@@ -4,9 +4,27 @@ The netlatency toolset is used to measure the latency and jitter parameters
 of an ethernet connection. The netlatency-tx generates UDP packets with
 embedded system timestamp (tx-user) and sequence number. The netlantency-rx
 captures these packets and dumps the collected receiving information such
-as hardware timestamp from the linux stack and the receiving system time
+as timestamp from the linux network stack and the receiving system time
 (rx-user). netlatency-ry can detect receiving errors (dropped packets or
 sequence error).
+
+
+The following timestamp values can be accessed on the netlatency-rx.
+
+| Timestamp          | Description                                             |
+| ------------------ | ------------------------------------------------------- |
+| interval-start     | The interval start timestamp                            |
+| tx-wakeup          | The wakeup timestamp of netlatency-tx                   |
+| tx-program         | The timestamp when calling the send function            |
+| tx-kernel-netsched | Linux kernel timestamp SOF_TIMESTAMPING_TX_SCHED        |
+| tx-kernel-driver   | Linux kernel timestamp SOF_TIMESTAMPING_TX_SOFTWARE     |
+| rx-hardware        | Linux kernel timestamp SOF_TIMESTAMPING_RX_HARDWARE     |
+| rx-program         | Timestamp when handling the testpacket in netlatency-rx |
+
+
+For linux kernel timestamp please refer to the kernel documentation:
+
+https://www.kernel.org/doc/Documentation/networking/timestamping.txt
 
 ## Shortcomings
 
@@ -140,7 +158,7 @@ application must run on the same CPU architecture.
 
 ## Helper: latency
 
-	usage: latency [-h] [infile]
+    usage: latency [-h] [infile]
 
 ### Input
 

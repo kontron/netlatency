@@ -161,6 +161,14 @@ The nl-calc tool stores the testpacket results of nl-rx and builds information
 for histogram analysis. Including Application accurancy/latency, full transmit
 latency (from application to RX hardware) and rx jitter.
 
+| Histogram type  | Description                                           |
+| --------------- | ----------------------------------------------------- |
+| program-latency | Histogram data of program wakeup time. It is used to  |
+|                 | observe the application accuracy.                     |
+| scheduled-times | Histogram data of packets runtime.                    |
+|                 |                                                       |
+| jitter          | Histogram data of packets runtime in a smaller        |
+|                 | window with nanosecond resolution.                    |
 
 ## Helper: nl-report
 

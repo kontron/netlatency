@@ -36,7 +36,6 @@
 #include <netpacket/packet.h>
 #include <linux/net_tstamp.h>
 #include <pthread.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,8 +73,6 @@ static gint o_verbose = 0;
 static gint o_version = 0;
 static gint o_small_pkt_mode = 0;
 static int o_queue_prio = -1;
-
-static gboolean do_shutdown = FALSE;
 
 static char tp_buf[1518];
 struct ether_testpacket *tp = (void*)tp_buf;
@@ -222,22 +219,6 @@ static void set_latency_target(gint32 latency_value)
     }
 }
 
-void signal_handler(int signal)
-{
-    switch (signal) {
-    case SIGINT:
-    case SIGTERM:
-        munlockall();
-        do_shutdown = TRUE;
-    break;
-    case SIGUSR1:
-    break;
-    default:
-    break;
-    }
-
-}
-
 struct thread_param {
     int fd;
 };
@@ -348,7 +329,7 @@ static void *timer_thread(void *params)
     tp->stream_id = o_stream_id;
     tp->version = 1;
 
-    while (!do_shutdown) {
+    while (TRUE) {
         /* get timestamp of last transmitted packet */
         get_tx_timestamps(parm->fd, &last_sched_tx_ts, &last_sw_tx_ts);
 
@@ -374,8 +355,8 @@ static void *timer_thread(void *params)
         }
 
         if (o_count && ++count >= o_count) {
-            do_shutdown = TRUE;
             tp->flags = TP_FLAG_END_OF_STREAM;
+            break;
         }
 
         send(parm->fd, (char*)tp, MAX(size, o_padding), 0);
@@ -395,7 +376,6 @@ int main(int argc, char **argv)
     int rv = 0;
     int fd;
     struct ifreq ifopts;
-    sigset_t sigset;
     pthread_t thread;
     pthread_attr_t attr;
     int opt;
@@ -472,11 +452,6 @@ int main(int argc, char **argv)
     /* ethertype */
     tp->hdr.ether_type = htons(TP_ETHER_TYPE);
 
-    sigemptyset(&sigset);
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
-    signal(SIGUSR1, signal_handler);
-
     rv = pthread_attr_init(&attr);
     if (rv) {
         perror("pthread_attr_init");
@@ -485,8 +460,6 @@ int main(int argc, char **argv)
     thread_param.fd = fd;
 
     rv = pthread_create(&thread, &attr, timer_thread, &thread_param);
-
-    while (!do_shutdown) usleep(10000);
 
     pthread_join(thread, NULL);
 

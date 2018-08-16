@@ -116,7 +116,7 @@ def plot(rxtimestamps, txtimestamps, jitter):
 
 def plot_output(outfile=None):
     if outfile:
-        plt.savefig(outfile, dpi=300)
+        plt.savefig(outfile)
     else:
         try:
             plt.show()

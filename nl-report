@@ -82,10 +82,9 @@ def add_subplot_data(plt, data, unit, width, reduce=1):
             horizontalalignment='right')
 
 
-def plot(rxtimestamps, txtimestamps, jitter):
+def plot(rxtimestamps, txtimestamps, jitter, props):
     plt.figure(figsize=(10,8))
-    plt.suptitle('TSN latency and jitter report', fontsize=14,
-            fontweight='bold')
+    plt.suptitle(props['plottitle'], fontsize=14, fontweight='bold')
 
     plt.subplot(2, 2, (1,2))
     plt.title('Scheduled times')
@@ -127,12 +126,17 @@ def plot_output(outfile=None):
 def main(args=None):
     parser = argparse.ArgumentParser(
         description='reportgen')
+    parser.add_argument('--title', dest='plottitle', type=str,
+                        default='TSN latency and jitter report',
+                        help='Set plot title.')
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'),
                         help='Input file (default is STDIN)', default=sys.stdin)
     parser.add_argument('outfile', nargs='?', type=str,
                         help='Output file (default is None, open X window)',
                         default=None)
     args = parser.parse_args(args)
+
+    props = dict(plottitle=args.plottitle)
 
     j = None
     a = None
@@ -172,7 +176,7 @@ def main(args=None):
             except ValueError:
                 pass
 
-    plot(a, b, c)
+    plot(a, b, c, props)
     plot_output(args.outfile)
 
 

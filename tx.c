@@ -356,11 +356,14 @@ static void *timer_thread(void *params)
 
         if (o_count && ++count >= o_count) {
             tp->flags = TP_FLAG_END_OF_STREAM;
-            break;
         }
 
         send(parm->fd, (char*)tp, MAX(size, o_padding), 0);
         tp->seq++;
+
+        if (tp->flags == TP_FLAG_END_OF_STREAM) {
+            break;
+        }
     }
 
     return NULL;

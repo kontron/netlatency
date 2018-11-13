@@ -28,6 +28,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/filter.h>
 #include <linux/if_packet.h>
 #include <linux/net_tstamp.h>
 #include <linux/sockios.h>
@@ -155,7 +156,7 @@ static struct msghdr *receive_msg(int fd, struct ether_addr *myaddr)
 
     /* block for message */
     n = recvmsg(fd, &msg, 0);
-    if ( n == 0 && errno == EAGAIN ) {
+    if ( n == -1 && errno == EAGAIN ) {
         return 0;
     }
 
@@ -412,7 +413,7 @@ int open_capture_interface(gchar *ifname)
     opt = 0;
     rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
     if (rc == -1) {
-        perror("setsockopt() ... enable");
+        perror("setsockopt(SO_REUSEADDR)");
         close(fd);
         return -1;
     }
@@ -443,7 +444,7 @@ int open_capture_interface(gchar *ifname)
               | SOF_TIMESTAMPING_SOFTWARE;
         rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
         if (rc == -1) {
-            perror("setsockopt() ... enable timestamp");
+            perror("setsockopt(SO_TIMESTAMPING)");
             return -1;
         }
     }
@@ -461,6 +462,36 @@ int open_capture_interface(gchar *ifname)
     }
 
     return fd;
+}
+
+static int flush_socket(int fd)
+{
+    int rc;
+    int opt;
+
+    /* filter instrucion to drop all packets */
+    struct sock_filter insn = BPF_STMT(BPF_RET | BPF_K, 0);
+    struct sock_fprog fcode = { 1, &insn };
+
+    /* filter out all incoming packets */
+    rc = setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &fcode, sizeof(fcode));
+    if (rc == -1) {
+        perror("setsockopt(SO_ATTACH_FILTER)");
+        return -1;
+    }
+
+    /* drain receive queue */
+    while (recv(fd, NULL, 0, MSG_TRUNC | MSG_DONTWAIT) > 0);
+
+    /* disable filter again */
+    opt = 0;
+    rc = setsockopt(fd, SOL_SOCKET, SO_DETACH_FILTER, &opt, sizeof(opt));
+    if (rc == -1) {
+        perror("setsockopt(SO_DETACH_FILTER)");
+        return -1;
+    }
+
+    return rc;
 }
 
 void usage(void)
@@ -629,6 +660,11 @@ int real_main(int argc, char **argv)
     signal(SIGTERM, signal_handler);
     signal(SIGUSR1, signal_handler);
 
+    rc = flush_socket(fd);
+    if (rc) {
+        close(fd);
+        return EXIT_FAILURE;
+    }
 
     while (!do_shutdown) {
         msg = receive_msg(fd, src_eth_addr);
@@ -639,7 +675,7 @@ int real_main(int argc, char **argv)
 
     close(fd);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 int main(int argc, char **argv)

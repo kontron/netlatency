@@ -1,6 +1,6 @@
 TOPDIR = $(shell pwd)
 
-VERSION := 0.3.4-dev
+VERSION := 0.3.5
 
 CROSS_COMPILE ?=
 O ?= $(TOPDIR)

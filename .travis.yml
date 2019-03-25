@@ -13,6 +13,7 @@ matrix:
           packages:
             - g++-4.9
             - libglib2.0-dev
+            - libjansson-dev
       env:
          - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
 
@@ -25,6 +26,7 @@ matrix:
           packages:
             - g++-5
             - libglib2.0-dev
+            - libjansson-dev
       env:
          - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
 
@@ -37,6 +39,7 @@ matrix:
           packages:
             - g++-6
             - libglib2.0-dev
+            - libjansson-dev
       env:
         - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
 
@@ -49,6 +52,7 @@ matrix:
           packages:
             - g++-7
             - libglib2.0-dev
+            - libjansson-dev
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
 
@@ -62,6 +66,7 @@ matrix:
           packages:
             - clang-3.6
             - libglib2.0-dev
+            - libjansson-dev
       env:
         - MATRIX_EVAL="CC=clang-3.6 && CXX=clang++-3.6"
 
@@ -75,6 +80,7 @@ matrix:
           packages:
             - clang-3.7
             - libglib2.0-dev
+            - libjansson-dev
       env:
         - MATRIX_EVAL="CC=clang-3.7 && CXX=clang++-3.7"
 
@@ -88,6 +94,7 @@ matrix:
           packages:
             - clang-3.8
             - libglib2.0-dev
+            - libjansson-dev
       env:
         - MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
 
@@ -100,6 +107,7 @@ matrix:
           packages:
             - clang-3.9
             - libglib2.0-dev
+            - libjansson-dev
       env:
         - MATRIX_EVAL="CC=clang-3.9 && CXX=clang++-3.9"
 
@@ -112,6 +120,7 @@ matrix:
           packages:
             - clang-4.0
             - libglib2.0-dev
+            - libjansson-dev
       env:
         - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
 
@@ -124,6 +133,7 @@ matrix:
           packages:
             - clang-5.0
             - libglib2.0-dev
+            - libjansson-dev
       env:
         - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
 

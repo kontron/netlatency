@@ -140,4 +140,4 @@ matrix:
 before_install:
     - eval "${MATRIX_EVAL}"
 
-script: make
+script: make && make test

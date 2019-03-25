@@ -12,7 +12,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-4.9
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
          - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
 
@@ -24,7 +24,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-5
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
          - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
 
@@ -36,7 +36,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
         - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
 
@@ -48,7 +48,7 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-7
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
 
@@ -61,7 +61,7 @@ matrix:
             - llvm-toolchain-precise-3.6
           packages:
             - clang-3.6
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
         - MATRIX_EVAL="CC=clang-3.6 && CXX=clang++-3.6"
 
@@ -74,7 +74,7 @@ matrix:
             - llvm-toolchain-precise-3.7
           packages:
             - clang-3.7
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
         - MATRIX_EVAL="CC=clang-3.7 && CXX=clang++-3.7"
 
@@ -87,7 +87,7 @@ matrix:
             - llvm-toolchain-precise-3.8
           packages:
             - clang-3.8
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
         - MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
 
@@ -99,7 +99,7 @@ matrix:
             - llvm-toolchain-trusty-3.9
           packages:
             - clang-3.9
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
         - MATRIX_EVAL="CC=clang-3.9 && CXX=clang++-3.9"
 
@@ -111,7 +111,7 @@ matrix:
             - llvm-toolchain-trusty-4.0
           packages:
             - clang-4.0
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
         - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
 
@@ -123,7 +123,7 @@ matrix:
             - llvm-toolchain-trusty-5.0
           packages:
             - clang-5.0
-			- libglib2.0-dev
+            - libglib2.0-dev
       env:
         - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
 

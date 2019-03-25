@@ -29,6 +29,11 @@ For linux kernel timestamp please refer to the kernel documentation:
 
 [https://www.kernel.org/doc/Documentation/networking/timestamping.txt](https://www.kernel.org/doc/Documentation/networking/timestamping.txt)
 
+# Build
+
+ * libglib2.0-dev
+ * libjansson-dev
+
 ## Shortcomings
 
 There is no byte order translation. Therefore, the sender and receiver

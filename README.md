@@ -1,5 +1,8 @@
 # Netlatency
 
+[![Build Status](https://img.shields.io/travis/kontron/netlatency/master.svg)](https://travis-ci.org/kontron/netlatency)
+
+
 The netlatency toolset is used to measure the latency and jitter parameters
 of an ethernet connection. The nl-tx generates UDP packets with
 embedded system timestamp (tx-user) and sequence number. The netlantency-rx

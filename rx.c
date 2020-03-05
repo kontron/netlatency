@@ -384,9 +384,14 @@ int get_own_eth_address(int fd, gchar *ifname, struct ether_addr *src_eth_addr)
 
     /* determine own ethernet address */
     memset(&ifopts, 0, sizeof(struct ifreq));
-    strncpy(ifopts.ifr_name, ifname, sizeof(ifopts.ifr_name));
-    if (ioctl(fd, SIOCGIFHWADDR, &ifopts) < 0) {
-        perror("ioctl");
+    if (strlen(ifname) < sizeof(ifopts.ifr_name)) {
+        memcpy(ifopts.ifr_name, ifname, strlen(ifname));
+        if (ioctl(fd, SIOCGIFHWADDR, &ifopts) < 0) {
+            perror("ioctl");
+            return -1;
+        }
+    } else {
+        perror("ifname too long");
         return -1;
     }
 

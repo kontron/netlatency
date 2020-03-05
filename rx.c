@@ -226,7 +226,7 @@ static int handle_test_packet(struct msghdr *msg,
     return 0;
 }
 
-int add_json_timestamp(json_t *object, char *name, struct timespec *ts)
+static int add_json_timestamp(json_t *object, char *name, struct timespec *ts)
 {
     char *s;
     json_t *n;
@@ -378,7 +378,7 @@ static int handle_msg(struct msghdr *msg)
     return 0;
 }
 
-int get_own_eth_address(int fd, gchar *ifname, struct ether_addr *src_eth_addr)
+static int get_own_eth_address(int fd, gchar *ifname, struct ether_addr *src_eth_addr)
 {
     struct ifreq ifopts;
 
@@ -400,7 +400,7 @@ int get_own_eth_address(int fd, gchar *ifname, struct ether_addr *src_eth_addr)
     return 0;
 }
 
-int open_capture_interface(gchar *ifname)
+static int open_capture_interface(gchar *ifname)
 {
     int rc;
     int fd;
@@ -572,7 +572,7 @@ static GOptionEntry entries[] = {
     { NULL, 0, 0, 0, NULL, NULL, NULL }
 };
 
-gint parse_command_line_options(gint *argc, char **argv)
+static gint parse_command_line_options(gint *argc, char **argv)
 {
     GError *error = NULL;
     GOptionContext *context;

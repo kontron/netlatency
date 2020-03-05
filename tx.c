@@ -434,10 +434,12 @@ int main(int argc, char **argv)
     /* determine own ethernet address */
     {
         memset(&ifopts, 0, sizeof(struct ifreq));
-        strncpy(ifopts.ifr_name, argv[1], sizeof(ifopts.ifr_name));
-        if (ioctl(fd, SIOCGIFHWADDR, &ifopts) < 0) {
-            perror("ioctl");
-            return -1;
+        if (strlen(argv[1]) < sizeof(ifopts.ifr_name)) {
+            memcpy(ifopts.ifr_name, argv[1], strlen(argv[1]));
+            if (ioctl(fd, SIOCGIFHWADDR, &ifopts) < 0) {
+                perror("ioctl");
+                return -1;
+            }
         }
     }
 

@@ -4,7 +4,9 @@ Release:    %SNAPSHOT%%{?dist}
 Summary:    A network latency measurement toolset
 License:    free
 Source:     %SRC_PACKAGE_NAME%.tar.gz
-BuildRequires:  glib2-devel jansson-devel
+BuildRequires:  glib2-devel
+BuildRequires:  jansson-devel
+BuildRequires:  gcc
 Requires:       glib2 jansson
 
 

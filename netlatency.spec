@@ -9,6 +9,7 @@ BuildRequires:  jansson-devel
 BuildRequires:  gcc
 Requires:       glib2 jansson
 
+%global debug_package %{nil}
 
 %description
 A network latency measurement toolset.

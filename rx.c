@@ -226,7 +226,7 @@ static int handle_test_packet(struct msghdr *msg,
     return 0;
 }
 
-static int add_json_timestamp(json_t *object, char *name, struct timespec *ts)
+static int add_json_timestamp(json_t *object, char *name, struct timespec ts)
 {
     char *s;
     json_t *n;
@@ -245,7 +245,7 @@ static int add_json_timestamp(json_t *object, char *name, struct timespec *ts)
         assert(0);
     }
 
-    s = timespec_to_iso_string(ts);
+    s = timespec_to_iso_string(&ts);
     json_array_append_new(v, json_string(s));
     g_free(s);
 
@@ -255,12 +255,9 @@ static int add_json_timestamp(json_t *object, char *name, struct timespec *ts)
 static json_t *json_test_packet(struct ether_testpacket *tp1,
         struct ether_testpacket *tp2, struct timespec *tss)
 {
-    struct timespec *ts;
-
     g_assert(tp1);
     g_assert(tp2);
     g_assert(tss);
-
 
     json_t *root = json_object();
     json_t *object = json_object();
@@ -278,14 +275,16 @@ static json_t *json_test_packet(struct ether_testpacket *tp1,
     json_object_set_new(timestamps, "names", json_array());
     json_object_set_new(timestamps, "values", json_array());
 
-    add_json_timestamp(timestamps, "interval-start", &tp1->timestamps[TS_T0]);
-    add_json_timestamp(timestamps, "tx-wakeup", &tp1->timestamps[TS_WAKEUP]);
-    add_json_timestamp(timestamps, "tx-program", &tp1->timestamps[TS_PROG_SEND]);
-    add_json_timestamp(timestamps, "tx-kernel-netsched", ts = &tp2->timestamps[TS_LAST_KERNEL_SCHED]);
-    add_json_timestamp(timestamps, "tx-kernel-driver", ts = &tp2->timestamps[TS_LAST_KERNEL_SW_TX]);
-    add_json_timestamp(timestamps, "rx-hardware", &tss[TS_KERNEL_HW_RX]);
+    /* copy the timestamps to ts to avoid unaligned pointer compiler errors */
+    add_json_timestamp(timestamps, "interval-start", tp1->timestamps[TS_T0]);
+    add_json_timestamp(timestamps, "interval-start", tp1->timestamps[TS_WAKEUP]);
+    add_json_timestamp(timestamps, "interval-start", tp1->timestamps[TS_PROG_SEND]);
+    add_json_timestamp(timestamps, "interval-start", tp2->timestamps[TS_LAST_KERNEL_SCHED]);
+    add_json_timestamp(timestamps, "interval-start", tp2->timestamps[TS_LAST_KERNEL_SW_TX]);
+
+    add_json_timestamp(timestamps, "rx-hardware", tss[TS_KERNEL_HW_RX]);
     //add_json_timestamp(timestamps, "rx-kernel-driver", &tss[TS_KERNEL_SW_RX]);
-    add_json_timestamp(timestamps, "rx-program", &tss[TS_PROG_RECV]);
+    add_json_timestamp(timestamps, "rx-program", tss[TS_PROG_RECV]);
 
     return root;
 }

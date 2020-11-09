@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 # Copyright (c) 2018, Kontron Europe GmbH
 # All rights reserved.
@@ -242,15 +242,15 @@ def main(args=None):
                     timestamp = result['object']['tx-program']
 
                     value = result['object']['latency-program']
-                    update_histogram(timestamp, value,
+                    update_histogram(timestamp, int(value),
                             hist_program_latency['object'])
 
                     value = result['object']['latency-scheduled-times']
-                    update_histogram_modulo(timestamp, value,
+                    update_histogram_modulo(timestamp, int(value),
                             hist_scheduled_times['object'])
 
                     jitter = calc_jitter(j['object'], ts)
-                    update_histogram_jitter(timestamp, jitter, hist_jitter['object']['offset'],
+                    update_histogram_jitter(timestamp, int(jitter), hist_jitter['object']['offset'],
                             hist_jitter['object'])
 
                 if args.count != 0:

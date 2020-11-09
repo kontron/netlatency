@@ -7,7 +7,10 @@ Source:     %SRC_PACKAGE_NAME%.tar.gz
 BuildRequires:  glib2-devel
 BuildRequires:  jansson-devel
 BuildRequires:  gcc
-Requires:       glib2 jansson
+Requires:       jansson
+Requires:       glib2
+Requires:       python3-matplotlib
+Requires:       python3-numpy
 
 %global debug_package %{nil}
 

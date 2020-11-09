@@ -11,6 +11,7 @@ Requires:       jansson
 Requires:       glib2
 Requires:       python3-matplotlib
 Requires:       python3-numpy
+Requires:       python3-dateutil
 
 %global debug_package %{nil}
 

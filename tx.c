@@ -232,8 +232,8 @@ static void tp_set_timestamp(struct ether_testpacket *tp, int tsnum, struct
         /* copy the timestamps to ts to avoid unaligned pointer compiler
          * errors */
         struct timespec ts_tmp;
-        memcpy(&ts_tmp, &tp->timestamps[tsnum], sizeof(struct timespec));
         clock_gettime(CLOCK_REALTIME, &ts_tmp);
+        memcpy(&tp->timestamps[tsnum], &ts_tmp, sizeof(struct timespec));
     } else {
         memcpy(&tp->timestamps[tsnum], ts, sizeof(struct timespec));
     }

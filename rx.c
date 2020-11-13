@@ -276,12 +276,11 @@ static json_t *json_test_packet(struct ether_testpacket *tp1,
     json_object_set_new(timestamps, "values", json_array());
 
     /* copy the timestamps to ts to avoid unaligned pointer compiler errors */
+    add_json_timestamp(timestamps, "interval-start", tp2->timestamps[TS_T0]);
     add_json_timestamp(timestamps, "tx-wakeup", tp1->timestamps[TS_WAKEUP]);
     add_json_timestamp(timestamps, "tx-program", tp1->timestamps[TS_PROG_SEND]);
     add_json_timestamp(timestamps, "tx-kernel-netsched", tp2->timestamps[TS_LAST_KERNEL_SCHED]);
     add_json_timestamp(timestamps, "tx-kernel-hardware", tp2->timestamps[TS_LAST_KERNEL_SW_TX]);
-
-    add_json_timestamp(timestamps, "interval-start", tp2->timestamps[TS_LAST_KERNEL_SW_TX]);
 
     add_json_timestamp(timestamps, "rx-hardware", tss[TS_KERNEL_HW_RX]);
     //add_json_timestamp(timestamps, "rx-kernel-driver", &tss[TS_KERNEL_SW_RX]);

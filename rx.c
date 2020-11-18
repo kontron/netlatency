@@ -355,8 +355,8 @@ static int handle_msg(struct msghdr *msg)
 
         /* or we've received the last packet */
         if (result->tp->flags & TP_FLAG_END_OF_STREAM) {
-            struct ether_testpacket *tp = g_new0(struct ether_testpacket, 1);
-            j = json_test_packet(result->tp, tp, result->rx_tss);
+            struct ether_testpacket *tp_dummy = g_new0(struct ether_testpacket, 1);
+            j = json_test_packet(result->tp, tp_dummy, result->rx_tss);
             free(tp);
             dump_json_stdout(j);
             json_decref(j);

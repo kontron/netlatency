@@ -137,7 +137,7 @@ char *timespec_to_iso_string(struct timespec *time)
 
     strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", &t);
     iso_string = g_string_new_len(buf, strlen(buf));
-    g_string_append_printf(iso_string, ".%09dZ", nsec);
+    g_string_append_printf(iso_string, ".%09d", nsec);
 
     return g_string_free(iso_string, FALSE);
 }

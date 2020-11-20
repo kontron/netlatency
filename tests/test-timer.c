@@ -182,34 +182,34 @@ static void test_timespec_to_iso_string(void)
 
     s = timespec_to_iso_string(NULL);
     g_assert(s != NULL);
-    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.000000000Z");
+    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.000000000");
     g_free(s);
 
     memset(&t, 0, sizeof(struct timespec));
     s = timespec_to_iso_string(&t);
     g_assert(s != NULL);
-    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.000000000Z");
+    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.000000000");
     g_free(s);
 
     t.tv_sec = 0;
     t.tv_nsec = 0;
     s = timespec_to_iso_string(&t);
     g_assert(s != NULL);
-    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.000000000Z");
+    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.000000000");
     g_free(s);
 
     t.tv_sec = 0;
     t.tv_nsec = 5000000;
     s = timespec_to_iso_string(&t);
     g_assert(s != NULL);
-    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.005000000Z");
+    g_assert_cmpstr(s, ==, "1970-01-01T00:00:00.005000000");
     g_free(s);
 
     t.tv_sec = 1520944655;
     t.tv_nsec = 5000000;
     s = timespec_to_iso_string(&t);
     g_assert(s != NULL);
-    g_assert_cmpstr(s, ==, "2018-03-13T12:37:35.005000000Z");
+    g_assert_cmpstr(s, ==, "2018-03-13T12:37:35.005000000");
     g_free(s);
 }
 

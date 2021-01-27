@@ -70,13 +70,16 @@ def plot(filename, data, stats, props):
     plt.close()
 
 def update_data(data, ts, relmode=False):
-    values = map(lambda v: int(numpy.datetime64(v)), ts['values'])
+    # convert timestamp in seconds since XXX
+    # 2021-01-26T14:50:57.428000000 -> 1611672657428000000
+    values = [int(numpy.datetime64(v)) for v in ts['values']]
 
     # check if a timestamp is 0
     if min(values) == 0:
         return True
 
-    values = map(lambda v: v - values[0], values)
+    # substract first timestamp value from the follwing
+    values = [v - values[0] for v in values]
 
     if (relmode):
         values[1:] = [b-a for a,b in zip(values, values[1:])]

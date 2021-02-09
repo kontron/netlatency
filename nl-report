@@ -97,7 +97,7 @@ def plot(rxtimestamps, txtimestamps, jitter, props):
     plt.title('RT Application latency')
     plt.grid(True)
     plt.xlabel('Latency ($\mu$s)')
-    plt.ylabel('Packets')
+    plt.ylabel('Samples')
     add_subplot_data(plt, txtimestamps, '$\mu$s', width=0.8)
 
     plt.subplot(2, 2, 4)

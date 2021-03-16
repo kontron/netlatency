@@ -361,10 +361,8 @@ static int handle_msg(struct msghdr *msg)
             dump_json_stdout(j);
             json_decref(j);
 
-            if (o_count && ++count >= o_count) {
-                do_shutdown = TRUE;
-                return 0;
-            }
+            do_shutdown = TRUE;
+            return 0;
         }
 
         break;

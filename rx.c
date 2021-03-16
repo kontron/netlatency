@@ -357,7 +357,7 @@ static int handle_msg(struct msghdr *msg)
         if (result->tp->flags & TP_FLAG_END_OF_STREAM) {
             struct ether_testpacket *tp_dummy = g_new0(struct ether_testpacket, 1);
             j = json_test_packet(result->tp, tp_dummy, result->rx_tss);
-            free(tp);
+            g_free(tp_dummy);
             dump_json_stdout(j);
             json_decref(j);
 

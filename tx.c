@@ -111,6 +111,32 @@ static int eth_open(const char *name)
     return fd;
 }
 
+static int setsockopt_priority(int fd, int prio)
+{
+    int rc;
+    int queue_prio_read;
+    socklen_t vallen = sizeof(queue_prio_read);
+
+    rc = setsockopt(fd, SOL_SOCKET, SO_PRIORITY, &prio,
+               sizeof(prio));
+    if (rc == -1) {
+        perror("setsockopt() ... set priority");
+        return -1;
+    }
+
+    if (getsockopt(fd, SOL_SOCKET, SO_PRIORITY,
+                   &queue_prio_read, &vallen)) {
+        perror("getsockopt priotity");
+        return -1;
+    }
+
+    if (memcmp(&queue_prio_read, &prio, sizeof(queue_prio_read))) {
+        perror("getsockopt priority: mismatch");
+    }
+
+    return rc;
+}
+
 void usage(void)
 {
     g_printf("%s", help_description);
@@ -411,10 +437,8 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    /* Set skb priority */
     if (o_queue_prio > 0) {
-        setsockopt(fd, SOL_SOCKET, SO_PRIORITY, &o_queue_prio,
-                   sizeof(o_queue_prio));
+        setsockopt_priority(fd, o_queue_prio);
     }
 
     /* enable transmit timestamping */

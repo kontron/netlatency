@@ -137,6 +137,25 @@ static int setsockopt_priority(int fd, int prio)
     return rc;
 }
 
+static int setsockopt_timestamping(int fd)
+{
+    int rc, opt;
+
+    opt = SOF_TIMESTAMPING_TX_SOFTWARE
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+          | SOF_TIMESTAMPING_TX_SCHED
+#endif
+          | SOF_TIMESTAMPING_SOFTWARE;
+
+    rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
+    if (rc == -1) {
+        perror("setsockopt() ... enable timestamp");
+        return -1;
+    }
+
+    return rc;
+}
+
 void usage(void)
 {
     g_printf("%s", help_description);
@@ -416,8 +435,6 @@ int main(int argc, char **argv)
     struct ifreq ifopts;
     pthread_t thread;
     pthread_attr_t attr;
-    int opt;
-    int rc;
 
     parse_command_line_options(&argc, argv);
 
@@ -441,17 +458,7 @@ int main(int argc, char **argv)
         setsockopt_priority(fd, o_queue_prio);
     }
 
-    /* enable transmit timestamping */
-    opt = SOF_TIMESTAMPING_TX_SOFTWARE
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
-          | SOF_TIMESTAMPING_TX_SCHED
-#endif
-          | SOF_TIMESTAMPING_SOFTWARE;
-    rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
-    if (rc == -1) {
-        perror("setsockopt() ... enable timestamp");
-        return -1;
-    }
+    setsockopt_timestamping(fd);
 
     /* use the /dev/cpu_dma_latency trick if it's there */
     set_latency_target(latency_target_value);

@@ -69,6 +69,8 @@ static gint o_interval_offset_usec = 0;
 static gint o_padding = -1;
 static gint o_sched_prio = 99;
 static gint o_stream_id = 0;
+static gint o_etf = 0;
+static gint o_etf_offset_usec = 0;
 static gint o_verbose = 0;
 static gint o_version = 0;
 static gint o_small_pkt_mode = 0;
@@ -156,6 +158,35 @@ static int setsockopt_timestamping(int fd)
     return rc;
 }
 
+static int setsockopt_txtime(int fd)
+{
+    int rc;
+    struct sock_txtime so_txtime = { .clockid = CLOCK_TAI };
+    struct sock_txtime so_txtime_read = { 0 };
+    socklen_t vallen = sizeof(so_txtime);
+
+    so_txtime.flags = SOF_TXTIME_REPORT_ERRORS;
+
+    rc = setsockopt(fd, SOL_SOCKET, SO_TXTIME, &so_txtime, sizeof(&so_txtime));
+    if (rc == -1) {
+        perror("setsockopt() ... enable future transmission time");
+        return -1;
+    }
+
+    if (getsockopt(fd, SOL_SOCKET, SO_TXTIME,
+                   &so_txtime_read, &vallen)) {
+        perror("getsockopt txtime");
+        return -1;
+    }
+
+    if (vallen != sizeof(so_txtime) ||
+            memcmp(&so_txtime, &so_txtime_read, vallen)) {
+        perror("getsockopt txtime: mismatch");
+    }
+
+    return 0;
+}
+
 void usage(void)
 {
     g_printf("%s", help_description);
@@ -171,6 +202,13 @@ static GOptionEntry entries[] = {
     { "stream-id",   'I', 0, G_OPTION_ARG_INT,
             &o_stream_id,
             "Set stream id (default is 0)", "ID" },
+    { "etf",         'e', 0, G_OPTION_ARG_NONE,
+            &o_etf,
+            "Use ETF for transmission", NULL },
+    { "etf-offset",  'E', 0, G_OPTION_ARG_INT,
+            &o_etf_offset_usec,
+            "The ETF offset in usec", "ETF-OFFSET"},
+
     { "count",       'c', 0, G_OPTION_ARG_INT,
             &o_count,
             "Transmit packet count", "COUNT" },
@@ -317,7 +355,8 @@ static void get_tx_timestamps(int fd, struct timespec *ts1,
      * receive is the one of the network scheduler and the second one the one
      * of the driver.
      */
-    while (recvmsg(fd, &msg, MSG_DONTWAIT | MSG_ERRQUEUE) > 0) {
+    ssize_t len = 0;
+    while ((len = recvmsg(fd, &msg, MSG_DONTWAIT | MSG_ERRQUEUE)) > 0) {
         for (cm = CMSG_FIRSTHDR(&msg); cm != NULL; cm = CMSG_NXTHDR(&msg, cm)) {
             if (cm->cmsg_level == SOL_SOCKET
                     && cm->cmsg_type == SO_TIMESTAMPING
@@ -330,6 +369,14 @@ static void get_tx_timestamps(int fd, struct timespec *ts1,
             }
         }
     }
+}
+
+guint64 gettime_ns(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_TAI, &ts);
+
+    return ts.tv_sec * (1000ULL * 1000 * 1000) + ts.tv_nsec;
 }
 
 static void *timer_thread(void *params)
@@ -397,6 +444,7 @@ static void *timer_thread(void *params)
         tp_set_timestamp(tp, TS_WAKEUP, NULL);
 
         tp_set_timestamp(tp, TS_T0, &interval_start);
+
         if (!o_small_pkt_mode) {
             tp_set_timestamp(tp, TS_LAST_KERNEL_SCHED, &last_sched_tx_ts);
             tp_set_timestamp(tp, TS_LAST_KERNEL_SW_TX, &last_sw_tx_ts);
@@ -412,7 +460,42 @@ static void *timer_thread(void *params)
             tp->flags = TP_FLAG_END_OF_STREAM;
         }
 
-        send(parm->fd, (char*)tp, MAX(size, o_padding), 0);
+        if (o_etf) {
+            struct msghdr msg = {0};
+            struct iovec iov = {0};
+            char control[CMSG_SPACE(sizeof(guint64))];
+            struct cmsghdr *cm;
+            guint64 transmit_time;
+            int ret;
+
+            iov.iov_base = (char*)tp;
+            iov.iov_len = MAX(size, o_padding);
+
+            msg.msg_iov = &iov;
+            msg.msg_iovlen = 1;
+
+            memset(control, 0, sizeof(control));
+            msg.msg_control = &control;
+            msg.msg_controllen = sizeof(control);
+
+            transmit_time = gettime_ns();
+            transmit_time += o_etf_offset_usec * 1000;
+
+            cm = CMSG_FIRSTHDR(&msg);
+            cm->cmsg_level = SOL_SOCKET;
+            cm->cmsg_type = SCM_TXTIME;
+            cm->cmsg_len = CMSG_LEN(sizeof(transmit_time));
+            memcpy(CMSG_DATA(cm), &transmit_time, sizeof(transmit_time));
+
+            ret = sendmsg(parm->fd, &msg, 0);
+            if (ret == -1)
+                perror("error sendmsg");
+            if (ret == 0)
+                perror("error sendmsg");
+
+        } else {
+            send(parm->fd, (char*)tp, MAX(size, o_padding), 0);
+        }
         tp->seq++;
 
         if (tp->flags == TP_FLAG_END_OF_STREAM) {
@@ -459,6 +542,10 @@ int main(int argc, char **argv)
     }
 
     setsockopt_timestamping(fd);
+
+    if (o_etf) {
+	setsockopt_txtime(fd);
+    }
 
     /* use the /dev/cpu_dma_latency trick if it's there */
     set_latency_target(latency_target_value);

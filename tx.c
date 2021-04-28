@@ -77,29 +77,34 @@ static int o_queue_prio = -1;
 static char tp_buf[1518];
 struct ether_testpacket *tp = (void*)tp_buf;
 
-int eth_open(const char *device)
+static int get_sk_interface_index(int fd, const char *name)
+{
+    struct ifreq ifreq;
+    int err;
+
+    memset(&ifreq, 0, sizeof(ifreq));
+    strncpy(ifreq.ifr_name, name, sizeof(ifreq.ifr_name) - 1);
+
+    err = ioctl(fd, SIOCGIFINDEX, &ifreq);
+    if (err < 0) {
+        perror("ioctl SIOCGIFINDEX failed: %m");
+        return err;
+    }
+    return ifreq.ifr_ifindex;
+}
+
+static int eth_open(const char *name)
 {
     int fd;
     struct sockaddr_ll sll;
-    struct ifreq ifr;
 
     if ((fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) < 0) {
         close(fd);
         return -1;
     }
 
-    strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
-
-    /* terminate string with 0 */
-    ifr.ifr_name[sizeof(ifr.ifr_name)-1] = 0;
-
-    if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
-        close(fd);
-        return -1;
-    }
-
     sll.sll_family = AF_PACKET;
-    sll.sll_ifindex = ifr.ifr_ifindex;
+    sll.sll_ifindex = get_sk_interface_index(fd, name);
 
     bind(fd, (struct sockaddr *) &sll, sizeof(sll));
 

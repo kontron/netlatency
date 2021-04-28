@@ -162,6 +162,17 @@ application must run on the same CPU architecture.
       }
     }
 
+## ETF - Earliest TxTime First Qdisc
+
+When using the etf option of nl-tx make sure the qdisc configuration is as
+required.
+
+Example:
+
+    tc qdisc del dev ${IFACE} root
+    tc qdisc add dev ${IFACE} parent root mqprio num_tc 3 map 2 2 1 0 2 2 2 2 2 2 2 2 2 2 2 2 queues 1@0 1@1 2@2 hw 0
+    MQPRIO_NUM=`tc qdisc show dev ${IFACE} | grep mqprio | cut -d ':' -f1 | cut -d ' ' -f3`
+    tc qdisc add dev ${IFACE} parent ${MQPRIO_NUM}:1 etf clockid CLOCK_TAI delta 150000 offload
 
 ## Helper: nl-calc
 

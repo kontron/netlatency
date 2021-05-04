@@ -544,7 +544,7 @@ int main(int argc, char **argv)
     setsockopt_timestamping(fd);
 
     if (o_etf) {
-	setsockopt_txtime(fd);
+        setsockopt_txtime(fd);
     }
 
     /* use the /dev/cpu_dma_latency trick if it's there */

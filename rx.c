@@ -315,15 +315,14 @@ static void dump_json_stdout(struct json_t *j)
 
 static int handle_msg(struct msghdr *msg)
 {
-    json_t *j;
-
     struct ether_header *hdr = msg->msg_iov->iov_base;
     guint16 ethertype = ntohs(hdr->ether_type);
-    struct result *result;
 
     /* build result message string */
     switch (ethertype) {
     case TP_ETHER_TYPE: {
+        struct result *result;
+        json_t *j;
         struct ether_testpacket *tp = (void*)hdr;
         int stream_id = tp->stream_id;
         result = &results[stream_id];
@@ -415,7 +414,7 @@ static int setsockopt_reuseaddr(int fd)
 static int setsockopt_rx_timestamping(int fd)
 {
     int rc;
-    int opt = 0;
+    int opt;
 
     opt = SOF_TIMESTAMPING_RX_HARDWARE
           | SOF_TIMESTAMPING_RAW_HARDWARE
@@ -637,7 +636,6 @@ int real_main(int argc, char **argv)
     struct ether_addr *src_eth_addr = NULL;
     char *ifname = NULL;
     sigset_t sigset;
-    struct msghdr *msg;
 
     parse_command_line_options(&argc, argv);
 
@@ -688,6 +686,7 @@ int real_main(int argc, char **argv)
     }
 
     while (!do_shutdown) {
+        struct msghdr *msg;
         msg = receive_msg(fd, src_eth_addr);
         if (msg) {
             handle_msg(msg);

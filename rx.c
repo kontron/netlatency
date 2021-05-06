@@ -397,6 +397,21 @@ static int get_own_eth_address(int fd, gchar *ifname, struct ether_addr *src_eth
     return 0;
 }
 
+static int setsockopt_reuseaddr(int fd)
+{
+    int rc;
+    int opt = 0;
+
+    rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
+    if (rc == -1) {
+        perror("setsockopt(SO_REUSEADDR)");
+        close(fd);
+        return -1;
+    }
+
+    return rc;
+}
+
 static int open_capture_interface(gchar *ifname)
 {
     int rc;
@@ -411,14 +426,7 @@ static int open_capture_interface(gchar *ifname)
         return -1;
     }
 
-    /* Allow the socket to be reused */
-    opt = 0;
-    rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof opt);
-    if (rc == -1) {
-        perror("setsockopt(SO_REUSEADDR)");
-        close(fd);
-        return -1;
-    }
+    setsockopt_reuseaddr(fd);
 
     if (!o_no_hw_ts) {
         /* configure timestamping */

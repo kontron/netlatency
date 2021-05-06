@@ -412,12 +412,49 @@ static int setsockopt_reuseaddr(int fd)
     return rc;
 }
 
-static int open_capture_interface(gchar *ifname)
+static int setsockopt_rx_timestamping(int fd)
 {
     int rc;
-    int fd;
+    int opt = 0;
+
+    opt = SOF_TIMESTAMPING_RX_HARDWARE
+          | SOF_TIMESTAMPING_RAW_HARDWARE
+          | SOF_TIMESTAMPING_SYS_HARDWARE
+          | SOF_TIMESTAMPING_SOFTWARE;
+    rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
+    if (rc == -1) {
+        perror("setsockopt(SO_TIMESTAMPING)");
+        return -1;
+    }
+
+    return rc;
+}
+
+static int set_hwtimestamping(int fd, gchar *ifname)
+{
     struct ifreq ifr;
-    int opt;
+    struct hwtstamp_config config;
+
+    config.flags = 0;
+    config.tx_type = HWTSTAMP_TX_ON;
+    config.rx_filter = o_rx_filter;
+    if (config.tx_type < 0 || config.rx_filter < 0) {
+        return -1;
+    }
+
+    snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
+    ifr.ifr_data = (caddr_t)&config;
+    if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
+        perror("ioctl() ... configure timestamping\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int open_capture_interface(gchar *ifname)
+{
+    int fd;
     struct sockaddr_ll sock_address;
 
     fd = socket(PF_PACKET, SOCK_RAW, htons(o_capture_ethertype));
@@ -429,34 +466,8 @@ static int open_capture_interface(gchar *ifname)
     setsockopt_reuseaddr(fd);
 
     if (!o_no_hw_ts) {
-        /* configure timestamping */
-        struct hwtstamp_config config;
-
-        config.flags = 0;
-        config.tx_type = HWTSTAMP_TX_ON;
-        config.rx_filter = o_rx_filter;
-        if (config.tx_type < 0 || config.rx_filter < 0) {
-            return -1;
-        }
-
-        snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", ifname);
-        ifr.ifr_data = (caddr_t)&config;
-        if (ioctl(fd, SIOCSHWTSTAMP, &ifr)) {
-            perror("ioctl() ... configure timestamping\n");
-            return -1;
-        }
-
-        /* Enable timestamping */
-        opt = 0;
-        opt = SOF_TIMESTAMPING_RX_HARDWARE
-              | SOF_TIMESTAMPING_RAW_HARDWARE
-              | SOF_TIMESTAMPING_SYS_HARDWARE
-              | SOF_TIMESTAMPING_SOFTWARE;
-        rc = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt, sizeof(opt));
-        if (rc == -1) {
-            perror("setsockopt(SO_TIMESTAMPING)");
-            return -1;
-        }
+		set_hwtimestamping(fd, ifname);
+        setsockopt_rx_timestamping(fd);
     }
 
     /* Bind to device */

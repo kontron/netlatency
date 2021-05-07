@@ -83,7 +83,7 @@ INSTALL_TARGETS += install-tx
 INSTALL_TARGETS += install-scripts
 INSTALL_TARGETS += install-manpages
 
-nl-rx_SOURCES := rx.c timer.c
+nl-rx_SOURCES := rx.c json.c timer.c
 nl-rx_OBJECTS := $(addprefix $(o),$(nl-rx_SOURCES:.c=.o))
 nl-tx_SOURCES := tx.c timer.c
 nl-tx_OBJECTS := $(addprefix $(o),$(nl-tx_SOURCES:.c=.o))

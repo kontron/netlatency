@@ -56,10 +56,29 @@ struct ether_testpacket {
 	struct timespec timestamps[TS_MAX_NUM];
 } __attribute__((__packed__));
 
+struct result {
+    struct ether_testpacket *tp;
+    struct ether_testpacket *last_tp;
+
+    struct timespec *rx_tss;
+    struct timespec *last_rx_tss;
+
+    gint dropped;
+    gboolean seq_error;
+};
+
+enum {
+    TS_KERNEL_HW_RX,
+    TS_KERNEL_SW_RX,
+    TS_PROG_RECV,
+
+    MAX_TS_RX
+};
+
 #define TP_HDR_LEN offsetof(struct ether_testpacket, timestamps)
 #define TP_LEN(x) (TP_HDR_LEN + sizeof(struct timespec) * (x))
 
 #define TP_FLAG_END_OF_STREAM  (1 << 0)
 #define TP_FLAG_SMALL_MODE     (1 << 1)
 
-#endif
+#endif /* #ifndef __DATA_H__ */

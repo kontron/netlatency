@@ -1,4 +1,4 @@
-TEST_LIST := timer rx
+TEST_LIST := timer rx json
 
 TEST_BINARIES = $(addprefix $(o)tests/test-,$(TEST_LIST))
 ALL_TARGETS += $(TEST_BINARIES)
@@ -18,7 +18,10 @@ $(o)tests/%.o: tests/%.c
 $(o)tests/test-timer: $(o)tests/test-timer.o
 	$(call link_tgt,tests)
 
-$(o)tests/test-rx: $(o)tests/test-rx.o $(o)timer.o
+$(o)tests/test-rx: $(o)tests/test-rx.o $(o)timer.o $(o)json.o
+	$(call link_tgt,tests)
+
+$(o)tests/test-json: $(o)tests/test-json.o $(o)timer.o
 	$(call link_tgt,tests)
 
 test-%: $(o)tests/test-%

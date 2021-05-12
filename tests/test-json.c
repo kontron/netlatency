@@ -28,7 +28,8 @@ static void test_json_error(void)
     g_assert(j != NULL);
     s = json_dumps(j, JSON_COMPACT);
     g_assert_cmpstr(s, ==, "{\"type\":\"rx-error\",\"object\":{\"dropped-packets\":0,\"sequence-error\":false}}");
-	free(s);
+    free(s);
+    json_decref(j);
 
 	result.dropped = 100;
 	result.seq_error = TRUE;
@@ -36,7 +37,8 @@ static void test_json_error(void)
     g_assert(j != NULL);
     s = json_dumps(j, JSON_COMPACT);
     g_assert_cmpstr(s, ==, "{\"type\":\"rx-error\",\"object\":{\"dropped-packets\":100,\"sequence-error\":true}}");
-	free(s);
+    free(s);
+    json_decref(j);
 }
 
 static void test_json_test_packet(void)
@@ -55,7 +57,8 @@ static void test_json_test_packet(void)
     g_assert(j != NULL);
     s = json_dumps(j, JSON_COMPACT);
     g_assert_cmpstr(s, ==, "{\"type\":\"rx-packet\",\"object\":{\"stream-id\":0,\"sequence-number\":0,\"interval-usec\":0,\"offset-usec\":0,\"timestamps\":{\"names\":[\"interval-start\",\"tx-wakeup\",\"tx-program\",\"tx-kernel-netsched\",\"tx-kernel-hardware\",\"rx-hardware\",\"rx-program\"],\"values\":[\"1970-01-01T00:00:00.000000000\",\"1970-01-01T00:00:00.000000000\",\"1970-01-01T00:00:00.000000000\",\"1970-01-01T00:00:00.000000000\",\"1970-01-01T00:00:00.000000000\",\"1970-01-01T00:00:00.000000000\",\"1970-01-01T00:00:00.000000000\"]}}}");
-	free(s);
+    free(s);
+    json_decref(j);
 }
 
 int main(int argc, char** argv)

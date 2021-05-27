@@ -1,6 +1,6 @@
 # Netlatency
 
-[![Build Status](https://img.shields.io/travis/kontron/netlatency/master.svg)](https://travis-ci.org/kontron/netlatency)
+![Build Status](https://github.com/kontron/netlatency/workflows/Build/badge.svg)
 
 
 The netlatency toolset is used to measure the latency and jitter parameters

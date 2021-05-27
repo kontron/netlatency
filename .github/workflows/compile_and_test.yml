@@ -1,0 +1,29 @@
+name: compile_and_test
+
+on: [push, pull_request]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build_and_test:
+    name: Build & test on ${{matrix.compiler}}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        compiler: ["gcc-10", "gcc-9", "gcc-8", "clang-10", "clang-11"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: sudo apt-get -y install libglib2.0-dev libjansson-dev ${{matrix.compiler}}
+
+      - name: Compile
+        run: make CC=${{matrix.compiler}}
+
+      - name: Run Tests
+        run: make test CC=${{matrix.compiler}}

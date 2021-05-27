@@ -1,6 +1,6 @@
 # Netlatency
 
-![Build Status](https://github.com/kontron/netlatency/workflows/Build/badge.svg)
+![Build Status](https://github.com/kontron/netlatency/workflows/compile_and_test/badge.svg)
 
 
 The netlatency toolset is used to measure the latency and jitter parameters
